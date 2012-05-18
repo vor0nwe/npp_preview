@@ -63,10 +63,6 @@ inherited frmHTMLPreview: TfrmHTMLPreview
     BevelOuter = bvNone
     Caption = '(no preview available)'
     TabOrder = 1
-    ExplicitLeft = 128
-    ExplicitTop = 88
-    ExplicitWidth = 185
-    ExplicitHeight = 41
     object pnlHTML: TPanel
       Left = 0
       Top = 0
@@ -76,10 +72,8 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       BevelOuter = bvNone
       Caption = 'pnlHTML'
       TabOrder = 0
-      ExplicitLeft = 96
-      ExplicitTop = 128
-      ExplicitWidth = 185
-      ExplicitHeight = 41
+      ExplicitWidth = 496
+      ExplicitHeight = 369
       object wbIE: TWebBrowser
         Left = 0
         Top = 0
@@ -100,7 +94,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
         ControlData = {
           4C000000173400002C2700000000000000000000000000000000000000000000
           000000004C000000000000000000000001000000E0D057007335CF11AE690800
-          2B2E126203000000000000004C0000000114020000000000C000000000000046
+          2B2E12620B000000000000004C0000000114020000000000C000000000000046
           8000000000000000000000000000000000000000000000000000000000000000
           00000000000000000100000000000000000000000000000000000000}
       end

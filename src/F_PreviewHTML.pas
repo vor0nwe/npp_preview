@@ -4,9 +4,9 @@ unit F_PreviewHTML;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, NppDockingForms, StdCtrls, NppPlugin, Vcl.OleCtrls, SHDocVw, Vcl.ExtCtrls, Vcl.ComCtrls,
-  Vcl.Buttons;
+  Windows, Messages, SysUtils, Classes, Variants, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, SHDocVw, Vcl.OleCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
+  NppPlugin, NppDockingForms;
 
 type
   TfrmHTMLPreview = class(TNppDockingForm)
@@ -55,7 +55,7 @@ uses
 procedure TfrmHTMLPreview.FormCreate(Sender: TObject);
 begin
   self.NppDefaultDockingMask := DWS_DF_FLOATING; // whats the default docking position
-  self.KeyPreview := true; // special hack for input forms
+  //self.KeyPreview := true; // special hack for input forms
   self.OnFloat := self.FormFloat;
   self.OnDock := self.FormDock;
   inherited;
@@ -152,6 +152,7 @@ procedure TfrmHTMLPreview.FormHide(Sender: TObject);
 begin
   inherited;
   SendMessage(self.Npp.NppData.NppHandle, NPPM_SETMENUITEMCHECK, self.CmdID, 0);
+  self.Visible := False;
 end;
 
 { ------------------------------------------------------------------------------------------------ }

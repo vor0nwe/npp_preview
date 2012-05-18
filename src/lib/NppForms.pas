@@ -37,8 +37,8 @@ type
     { Public declarations }
     Npp: TNppPlugin;
     DefaultCloseAction: TCloseAction;
-    constructor Create(NppParent: TNppPlugin); overload;
-    constructor Create(AOwner: TNppForm); overload;
+    constructor Create(NppParent: TNppPlugin); reintroduce; overload;
+    constructor Create(AOwner: TNppForm); reintroduce; overload;
     destructor Destroy; override;
 //    procedure Show;
     function WantChildKey(Child: TControl; var Message: TMessage): Boolean; override;
@@ -81,25 +81,18 @@ begin
 end;
 
 procedure TNppForm.RegisterForm();
-var
-  r: Integer;
 begin
-  r:=SendMessage(self.Npp.NppData.NppHandle, NPPM_MODELESSDIALOG, MODELESSDIALOGADD, self.Handle);
-{
-  if (r = 0) then
-  begin
-    ShowMessage('Failed reg of form '+form.Name);
-    exit;
+  if 0 = SendMessage(self.Npp.NppData.NppHandle, NPPM_MODELESSDIALOG, MODELESSDIALOGADD, self.Handle) then begin
+    raise Exception.CreateFmt('Failed registration of form %s.', [Self.Name]);
   end;
-}
 end;
 
 procedure TNppForm.UnregisterForm();
-var
-  r: Integer;
+{var
+  r: Integer;}
 begin
   if (not self.HandleAllocated) then exit;
-  r:=SendMessage(self.Npp.NppData.NppHandle, NPPM_MODELESSDIALOG, MODELESSDIALOGREMOVE, self.Handle);
+  {r := }SendMessage(self.Npp.NppData.NppHandle, NPPM_MODELESSDIALOG, MODELESSDIALOGREMOVE, self.Handle);
 {
   if (r = 0) then
   begin

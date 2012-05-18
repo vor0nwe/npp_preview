@@ -28,7 +28,8 @@ var
 implementation
 uses
   ShellAPI,
-  IdURI;
+  IdURI,
+  L_VersionInfoW, L_SpecialFolders;
 
 {$R *.dfm}
 
@@ -44,8 +45,10 @@ procedure TAboutForm.txtAuthorClick(Sender: TObject);
 var
   Subject: string;
 begin
-{$MESSAGE HINT 'TODO: use DLL’s version info in the about box'}
-  Subject := Format(Self.Caption, []);
+  with TFileVersionInfo.Create(TSpecialFolders.DLLFullName) do begin
+    Subject := Self.Caption + Format(' v%s', [FileVersion]);
+    Free;
+  end;
   Subject := TIdURI.ParamsEncode(Subject);
   ShellExecute(Self.Handle, nil, PChar('mailto:vor0nwe@users.sf.net?subject=' + Subject), nil, nil, SW_SHOWDEFAULT);
 end {TAboutForm.txtAuthorClick};

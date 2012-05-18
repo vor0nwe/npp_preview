@@ -422,7 +422,7 @@ type
     IsCtrl: Boolean;
     IsAlt: Boolean;
     IsShift: Boolean;
-    Key: Char;
+    Key: AnsiChar;
   end;
   PShortcutKey = ^TShortcutKey;
 
@@ -585,10 +585,10 @@ end;
 function TNppPlugin.GetPluginsConfigDir: string;
 var
   s: string;
-  r: integer;
+//  r: integer;
 begin
   SetLength(s, 1001);
-  r := SendMessage(self.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, 1000, LPARAM(PChar(s)));
+  {r := }SendMessage(self.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, 1000, LPARAM(PChar(s)));
   SetString(s, PChar(s), StrLen(PChar(s)));
   Result := s;
 end;
@@ -651,7 +651,7 @@ var
 begin
   // ask if we are not already opened
   SetLength(s, 500);
-  r := SendMessage(self.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, 0, LPARAM(PChar(s)));
+  {r := }SendMessage(self.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, 0, LPARAM(PChar(s)));
   SetString(s, PChar(s), strlen(PChar(s)));
   Result := true;
   if (s = filename) then exit;

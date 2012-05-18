@@ -4,7 +4,9 @@ unit U_Npp_PreviewHTML;
 interface
 
 uses
-  NppPlugin, SysUtils, Windows, SciSupport, F_About, F_PreviewHTML;
+  SysUtils, Windows,
+  NppPlugin, SciSupport,
+  F_About, F_PreviewHTML;
 
 type
   TNppPluginPreviewHTML = class(TNppPlugin)
@@ -34,17 +36,13 @@ implementation
 constructor TNppPluginPreviewHTML.Create;
 var
   sk: TShortcutKey;
-  i: Integer;
 begin
   inherited;
   self.PluginName := '&Preview HTML';
-  i := 0;
 
-  self.AddFuncItem('&Preview HTML', _FuncShowPreview);
-
-//  sk.IsCtrl := true; sk.IsAlt := true; sk.IsShift := false;
-//  sk.Key := #118; // CTRL ALT SHIFT F7
-//  self.AddFuncItem('Replace Hello World', _FuncHelloWorld, sk);
+  sk.IsShift := True; sk.IsCtrl := true; sk.IsAlt := False;
+  sk.Key := 'H'; // Ctrl-Shift-H
+  self.AddFuncItem('&Preview HTML', _FuncShowPreview, sk);
 
   self.AddFuncSeparator;
 
