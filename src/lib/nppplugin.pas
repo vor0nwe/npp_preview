@@ -299,9 +299,16 @@ const
 
   NPPN_SHUTDOWN = (NPPN_FIRST + 9);
   // To notify plugins that Notepad++ is about to be shutdowned.
-  //scnNotification->nmhdr.code = NPPN_SHOUTDOWN;
+  //scnNotification->nmhdr.code = NPPN_SHUTDOWN;
   //scnNotification->nmhdr.hwndFrom = hwndNpp;
   //scnNotification->nmhdr.idFrom = 0;
+
+  NPPN_BUFFERACTIVATED = (NPPN_FIRST + 10);
+  // To notify plugins that a buffer was activated (put to foreground).
+  //scnNotification->nmhdr.code = NPPN_BUFFERACTIVATED;
+ 	//scnNotification->nmhdr.hwndFrom = hwndNpp;
+  //scnNotification->nmhdr.idFrom = activatedBufferID;
+
 
   RUNCOMMAND_USER    = (WM_USER + 3000);
     VAR_NOT_RECOGNIZED = 0;
@@ -468,6 +475,7 @@ type
     // hooks
     procedure DoNppnToolbarModification; virtual;
     procedure DoNppnShutdown; virtual;
+    procedure DoNppnBufferActivated(const BufferID: Cardinal); virtual;
 
     // df
     function DoOpen(filename: String): boolean; overload;
@@ -587,14 +595,18 @@ end;
 
 procedure TNppPlugin.BeNotified(sn: PSCNotification);
 begin
-  if (HWND(sn^.nmhdr.hwndFrom) = self.NppData.NppHandle) and (sn^.nmhdr.code = NPPN_TB_MODIFICATION) then
-  begin
-    self.DoNppnToolbarModification;
-  end
-  else
-  if (HWND(sn^.nmhdr.hwndFrom) = self.NppData.NppHandle) and (sn^.nmhdr.code = NPPN_SHUTDOWN) then
-  begin
-    self.DoNppnShutdown;
+  if HWND(sn^.nmhdr.hwndFrom) = self.NppData.NppHandle then begin
+    case sn.nmhdr.code of
+      NPPN_TB_MODIFICATION: begin
+        self.DoNppnToolbarModification;
+      end;
+      NPPN_SHUTDOWN: begin
+        self.DoNppnShutdown;
+      end;
+      NPPN_BUFFERACTIVATED: begin
+        self.DoNppnBufferActivated(sn.nmhdr.idFrom);
+      end;
+    end;
   end;
   // @todo
 end;
@@ -668,6 +680,10 @@ begin
   // override these
 end;
 
+procedure TNppPlugin.DoNppnBufferActivated(const BufferID: Cardinal);
+begin
+  // override these
+end;
 
 
 function TNppPlugin.CmdIdFromDlgId(DlgId: Integer): Integer;

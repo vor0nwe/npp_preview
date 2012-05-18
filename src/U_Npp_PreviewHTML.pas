@@ -14,6 +14,7 @@ type
     procedure CommandReplaceHelloWorld;
     procedure CommandShowAbout;
     procedure DoNppnToolbarModification; override;
+    procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
   end;
 
 procedure _FuncShowPreview; cdecl;
@@ -107,6 +108,17 @@ begin
   tb.ToolbarBmp := LoadImage(Hinstance, 'IDB_TB_TEST', IMAGE_BITMAP, 0, 0, (LR_DEFAULTSIZE or LR_LOADMAP3DCOLORS));
   SendMessage(self.NppData.NppHandle, NPPM_ADDTOOLBARICON, WPARAM(self.CmdIdFromDlgId(0)), LPARAM(@tb));
 end;
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TNppPluginPreviewHTML.DoNppnBufferActivated(const BufferID: Cardinal);
+begin
+  inherited;
+  if Assigned(frmHTMLPreview) then begin
+{$MESSAGE HINT 'TODO: only refresh the preview if it’s visible (and if so configured)'}
+    frmHTMLPreview.Button1.Click;
+  end;
+end;
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 initialization

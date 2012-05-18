@@ -17,7 +17,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
     Left = 0
     Top = 0
     Width = 504
-    Height = 360
+    Height = 379
     Align = alClient
     TabOrder = 0
     OnStatusTextChange = wbIEStatusTextChange
@@ -30,7 +30,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
     ExplicitWidth = 288
     ExplicitHeight = 159
     ControlData = {
-      4C00000017340000352500000000000000000000000000000000000000000000
+      4C000000173400002C2700000000000000000000000000000000000000000000
       000000004C000000000000000000000001000000E0D057007335CF11AE690800
       2B2E126202000000000000004C0000000114020000000000C000000000000046
       8000000000000000000000000000000000000000000000000000000000000000
@@ -73,6 +73,8 @@ inherited frmHTMLPreview: TfrmHTMLPreview
     Top = 360
     Width = 504
     Height = 19
+    Align = alNone
+    Anchors = [akLeft, akRight, akBottom]
     Panels = <>
     SimplePanel = True
   end
