@@ -5,17 +5,20 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, NppDockingForms, StdCtrls, NppPlugin, Vcl.OleCtrls, SHDocVw, Vcl.ExtCtrls, Vcl.ComCtrls;
+  Dialogs, NppDockingForms, StdCtrls, NppPlugin, Vcl.OleCtrls, SHDocVw, Vcl.ExtCtrls, Vcl.ComCtrls,
+  Vcl.Buttons;
 
 type
   TfrmHTMLPreview = class(TNppDockingForm)
     wbIE: TWebBrowser;
     pnlButtons: TPanel;
-    Button1: TButton;
-    Button2: TButton;
+    btnRefresh: TButton;
+    btnClose: TButton;
     sbrIE: TStatusBar;
-    procedure Button1Click(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
+    pnlPreview: TPanel;
+    pnlHTML: TPanel;
+    procedure btnRefreshClick(Sender: TObject);
+    procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: Char);
     procedure FormHide(Sender: TObject);
@@ -23,13 +26,13 @@ type
     procedure FormDock(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure wbIETitleChange(ASender: TObject; const Text: WideString);
-    procedure FormActivate(Sender: TObject);
     procedure wbIEBeforeNavigate2(ASender: TObject; const pDisp: IDispatch; const URL, Flags,
       TargetFrameName, PostData, Headers: OleVariant; var Cancel: WordBool);
     procedure wbIENewWindow3(ASender: TObject; var ppDisp: IDispatch; var Cancel: WordBool;
       dwFlags: Cardinal; const bstrUrlContext, bstrUrl: WideString);
     procedure wbIEStatusTextChange(ASender: TObject; const Text: WideString);
     procedure wbIEStatusBar(ASender: TObject; StatusBar: WordBool);
+    procedure btnCloseStatusbarClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -59,26 +62,25 @@ begin
 end;
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TfrmHTMLPreview.FormActivate(Sender: TObject);
+procedure TfrmHTMLPreview.btnCloseStatusbarClick(Sender: TObject);
 begin
-  inherited;
-  Button1.Click;
+  sbrIE.Visible := False;
 end;
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TfrmHTMLPreview.Button1Click(Sender: TObject);
+procedure TfrmHTMLPreview.btnRefreshClick(Sender: TObject);
 var
   View: Integer;
   BufferID: Integer;
   hScintilla: THandle;
+  IsHTML: Boolean;
   Size: Integer;
   Filename: nppString;
   Content: UTF8String;
   HTML: string;
   HeadStart: Integer;
+  Language: TNppLang;
 begin
-  inherited;
-
   SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
   if View = 0 then begin
     hScintilla := Self.Npp.NppData.ScintillaMainHandle;
@@ -87,42 +89,45 @@ begin
   end;
   BufferID := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTBUFFERID, 0, 0);
 
-  Size := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nil));
-  SetLength(Filename, Size);
-  SetLength(Filename, SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nppPChar(Filename))));
-//  Filename := nppString(nppPChar(Filename));
+  IsHTML := SCLEX_HTML = SendMessage(hScintilla, SCI_GETLEXER, 0, 0);
+  pnlHTML.Visible := IsHTML;
+  sbrIE.Visible := IsHTML and (Length(sbrIE.SimpleText) > 0);
+  if IsHTML then begin
+    Size := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nil));
+    SetLength(Filename, Size);
+    SetLength(Filename, SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nppPChar(Filename))));
 
-//  Filename := StringOfChar(#0, MAX_PATH);
-//  Size := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, Length(Filename), LPARAM(nppPChar(Filename)));
-//  Filename := nppString(nppPChar(Filename));
+    Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
+    SetLength(Content, Size);
+    SendMessage(hScintilla, SCI_GETTEXT, Size, NativeInt(PAnsiChar(Content)));
+    Content := UTF8String(PAnsiChar(Content));
 
-  Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
-  SetLength(Content, Size);
-  SendMessage(hScintilla, SCI_GETTEXT, Size, NativeInt(PAnsiChar(Content)));
-  Content := UTF8String(PAnsiChar(Content));
+    HTML := string(Content);
 
-  HTML := string(Content);
-
-  if SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETBUFFERLANGTYPE, BufferID, 0) = NativeInt(L_HTML) then begin
-    if Pos('<base ', HTML) = 0 then begin
-      HeadStart := Pos('<head>', HTML);
-      if HeadStart > 0 then
-        Inc(HeadStart, 6)
-      else
-        HeadStart := 1;
-      Insert('<base href="' + Filename + '" />', HTML, HeadStart);
+    Language := TNppLang(SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETBUFFERLANGTYPE, BufferID, 0));
+    if Language = L_HTML then begin
+      if Pos('<base ', HTML) = 0 then begin
+        HeadStart := Pos('<head>', HTML);
+        if HeadStart > 0 then
+          Inc(HeadStart, 6)
+        else
+          HeadStart := 1;
+        Insert('<base href="' + Filename + '" />', HTML, HeadStart);
+      end;
     end;
-  end;
-  wbIE.LoadDocFromString(string(HTML));
+    wbIE.LoadDocFromString(string(HTML));
 
-  if wbIE.GetDocument <> nil then
-    self.UpdateDisplayInfo(wbIE.GetDocument.title)
-  else
+    if wbIE.GetDocument <> nil then
+      self.UpdateDisplayInfo(wbIE.GetDocument.title)
+    else
+      self.UpdateDisplayInfo('');
+  end else begin
     self.UpdateDisplayInfo('');
+  end;
 end;
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TfrmHTMLPreview.Button2Click(Sender: TObject);
+procedure TfrmHTMLPreview.btnCloseClick(Sender: TObject);
 begin
   inherited;
   self.Hide;
@@ -183,8 +188,6 @@ end;
 procedure TfrmHTMLPreview.wbIENewWindow3(ASender: TObject; var ppDisp: IDispatch;
   var Cancel: WordBool; dwFlags: Cardinal; const bstrUrlContext, bstrUrl: WideString);
 begin
-  inherited;
-
   if bstrUrl <> 'about:blank' then begin
     ShellExecute(Npp.NppData.NppHandle, nil, PChar(bstrUrl), nil, nil, SW_SHOWDEFAULT);
   end;

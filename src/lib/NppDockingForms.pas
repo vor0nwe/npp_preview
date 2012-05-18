@@ -43,8 +43,8 @@ type
     CmdId: Integer;
     constructor Create(NppParent: TNppPlugin); overload;
     constructor Create(AOwner: TNppForm); overload;
-    constructor Create(NppParent: TNppPlugin; DlgId: Integer); overload; virtual;
-    constructor Create(AOwner: TNppForm; DlgId: Integer); overload;  virtual;
+    constructor Create(NppParent: TNppPlugin; DlgId: Integer); reintroduce; overload; virtual;
+    constructor Create(AOwner: TNppForm; DlgId: Integer); reintroduce; overload; virtual;
     procedure Show;
     procedure Hide;
     procedure RegisterDockingForm(MaskStyle: Cardinal = DWS_DF_CONT_LEFT);
@@ -66,16 +66,14 @@ implementation
 
 { TNppDockingForm }
 
-// I don't know how else to hide a constructor.
+//// I don't know how else to hide a constructor.
 constructor TNppDockingForm.Create(NppParent: TNppPlugin);
 begin
-  MessageBox(0, 'Do not use this constructor', 'Plugin Framework error', MB_OK);
-  Halt(1);
+  raise EProgrammerNotFound.Create('Do not use this constructor');
 end;
 constructor TNppDockingForm.Create(AOwner: TNppForm);
 begin
-  MessageBox(0, 'Do not use this constructor', 'Plugin Framework error', MB_OK);
-  Halt(1);
+  raise EProgrammerNotFound.Create('Do not use this constructor');
 end;
 
 constructor TNppDockingForm.Create(NppParent: TNppPlugin; DlgId: Integer);
@@ -167,13 +165,14 @@ end;
 procedure TNppDockingForm.Show;
 begin
   SendMessage(self.Npp.NppData.NppHandle, NPPM_DMMSHOW, 0, LPARAM(self.Handle));
-  inherited;
+  inherited Show;
   self.DoShow;
 end;
 
 procedure TNppDockingForm.Hide;
 begin
   SendMessage(self.Npp.NppData.NppHandle, NPPM_DMMHIDE, 0, LPARAM(self.Handle));
+  inherited Hide;
   self.DoHide;
 end;
 

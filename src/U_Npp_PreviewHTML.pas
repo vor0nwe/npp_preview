@@ -40,7 +40,7 @@ begin
   self.PluginName := '&Preview HTML';
   i := 0;
 
-  self.AddFuncItem('&Show preview', _FuncShowPreview);
+  self.AddFuncItem('&Preview HTML', _FuncShowPreview);
 
 //  sk.IsCtrl := true; sk.IsAlt := true; sk.IsShift := false;
 //  sk.Key := #118; // CTRL ALT SHIFT F7
@@ -48,7 +48,7 @@ begin
 
   self.AddFuncSeparator;
 
-  self.AddFuncItem('About', _FuncShowAbout);
+  self.AddFuncItem('&About', _FuncShowAbout);
 end;
 
 { ------------------------------------------------------------------------------------------------ }
@@ -92,11 +92,17 @@ const
 begin
   if (not Assigned(frmHTMLPreview)) then begin
     frmHTMLPreview := TfrmHTMLPreview.Create(self, ncDlgId);
-//  end else begin
-//    SendMessage(Npp.NppData.NppHandle, NPPM_SETMENUITEMCHECK, WPARAM(self.CmdIdFromDlgId(ncDlgId)), 0);
-//    FreeAndNil(frmHTMLPreview);
+    frmHTMLPreview.Show;
+  end else begin
+    if not frmHTMLPreview.Visible then
+      frmHTMLPreview.Show
+    else
+      frmHTMLPreview.Hide
+    ;
   end;
-  frmHTMLPreview.Show;
+  if frmHTMLPreview.Visible then begin
+    frmHTMLPreview.btnRefresh.Click;
+  end;
 end;
 
 { ------------------------------------------------------------------------------------------------ }
@@ -105,7 +111,7 @@ var
   tb: TToolbarIcons;
 begin
   tb.ToolbarIcon := 0;
-  tb.ToolbarBmp := LoadImage(Hinstance, 'IDB_TB_TEST', IMAGE_BITMAP, 0, 0, (LR_DEFAULTSIZE or LR_LOADMAP3DCOLORS));
+  tb.ToolbarBmp := LoadImage(Hinstance, 'TB_PREVIEW_HTML', IMAGE_BITMAP, 0, 0, (LR_DEFAULTSIZE or LR_LOADMAP3DCOLORS));
   SendMessage(self.NppData.NppHandle, NPPM_ADDTOOLBARICON, WPARAM(self.CmdIdFromDlgId(0)), LPARAM(@tb));
 end;
 
@@ -113,9 +119,9 @@ end;
 procedure TNppPluginPreviewHTML.DoNppnBufferActivated(const BufferID: Cardinal);
 begin
   inherited;
-  if Assigned(frmHTMLPreview) then begin
-{$MESSAGE HINT 'TODO: only refresh the preview if it’s visible (and if so configured)'}
-    frmHTMLPreview.Button1.Click;
+  if Assigned(frmHTMLPreview) and frmHTMLPreview.Visible then begin
+{$MESSAGE HINT 'TODO: only refresh the preview if it’s configured to follow the active tab'}
+    frmHTMLPreview.btnRefresh.Click;
   end;
 end;
 

@@ -4,7 +4,6 @@ inherited frmHTMLPreview: TfrmHTMLPreview
   ClientHeight = 420
   ClientWidth = 504
   ParentFont = True
-  OnActivate = FormActivate
   OnCreate = FormCreate
   OnHide = FormHide
   OnKeyPress = FormKeyPress
@@ -13,29 +12,6 @@ inherited frmHTMLPreview: TfrmHTMLPreview
   ExplicitHeight = 454
   PixelsPerInch = 96
   TextHeight = 13
-  object wbIE: TWebBrowser
-    Left = 0
-    Top = 0
-    Width = 504
-    Height = 379
-    Align = alClient
-    TabOrder = 0
-    OnStatusTextChange = wbIEStatusTextChange
-    OnTitleChange = wbIETitleChange
-    OnBeforeNavigate2 = wbIEBeforeNavigate2
-    OnStatusBar = wbIEStatusBar
-    OnNewWindow3 = wbIENewWindow3
-    ExplicitLeft = 8
-    ExplicitTop = 8
-    ExplicitWidth = 288
-    ExplicitHeight = 159
-    ControlData = {
-      4C000000173400002C2700000000000000000000000000000000000000000000
-      000000004C000000000000000000000001000000E0D057007335CF11AE690800
-      2B2E126202000000000000004C0000000114020000000000C000000000000046
-      8000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000100000000000000000000000000000000000000}
-  end
   object pnlButtons: TPanel
     Left = 0
     Top = 379
@@ -43,11 +19,11 @@ inherited frmHTMLPreview: TfrmHTMLPreview
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
-    TabOrder = 1
+    TabOrder = 0
     DesignSize = (
       504
       41)
-    object Button1: TButton
+    object btnRefresh: TButton
       Left = 8
       Top = 6
       Width = 75
@@ -55,9 +31,9 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       Anchors = [akLeft, akBottom]
       Caption = 'Refresh'
       TabOrder = 0
-      OnClick = Button1Click
+      OnClick = btnRefreshClick
     end
-    object Button2: TButton
+    object btnClose: TButton
       Left = 421
       Top = 6
       Width = 75
@@ -65,17 +41,69 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       Anchors = [akRight, akBottom]
       Caption = 'Close'
       TabOrder = 1
-      OnClick = Button2Click
+      OnClick = btnCloseClick
+    end
+    object sbrIE: TStatusBar
+      Left = 89
+      Top = 10
+      Width = 326
+      Height = 19
+      Align = alNone
+      Anchors = [akLeft, akRight, akBottom]
+      Panels = <>
+      SimplePanel = True
     end
   end
-  object sbrIE: TStatusBar
+  object pnlPreview: TPanel
     Left = 0
-    Top = 360
+    Top = 0
     Width = 504
-    Height = 19
-    Align = alNone
-    Anchors = [akLeft, akRight, akBottom]
-    Panels = <>
-    SimplePanel = True
+    Height = 379
+    Align = alClient
+    BevelOuter = bvNone
+    Caption = '(no preview available)'
+    TabOrder = 1
+    ExplicitLeft = 128
+    ExplicitTop = 88
+    ExplicitWidth = 185
+    ExplicitHeight = 41
+    object pnlHTML: TPanel
+      Left = 0
+      Top = 0
+      Width = 504
+      Height = 379
+      Align = alClient
+      BevelOuter = bvNone
+      Caption = 'pnlHTML'
+      TabOrder = 0
+      ExplicitLeft = 96
+      ExplicitTop = 128
+      ExplicitWidth = 185
+      ExplicitHeight = 41
+      object wbIE: TWebBrowser
+        Left = 0
+        Top = 0
+        Width = 504
+        Height = 379
+        TabStop = False
+        Align = alClient
+        TabOrder = 0
+        OnStatusTextChange = wbIEStatusTextChange
+        OnTitleChange = wbIETitleChange
+        OnBeforeNavigate2 = wbIEBeforeNavigate2
+        OnStatusBar = wbIEStatusBar
+        OnNewWindow3 = wbIENewWindow3
+        ExplicitLeft = 8
+        ExplicitTop = 8
+        ExplicitWidth = 288
+        ExplicitHeight = 159
+        ControlData = {
+          4C000000173400002C2700000000000000000000000000000000000000000000
+          000000004C000000000000000000000001000000E0D057007335CF11AE690800
+          2B2E126203000000000000004C0000000114020000000000C000000000000046
+          8000000000000000000000000000000000000000000000000000000000000000
+          00000000000000000100000000000000000000000000000000000000}
+      end
+    end
   end
 end
