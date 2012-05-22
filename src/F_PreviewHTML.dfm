@@ -29,7 +29,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       Width = 75
       Height = 25
       Anchors = [akLeft, akBottom]
-      Caption = 'Refresh'
+      Caption = '&Refresh'
       TabOrder = 0
       OnClick = btnRefreshClick
     end

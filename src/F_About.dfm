@@ -4,6 +4,7 @@ inherited AboutForm: TAboutForm
   Caption = 'About Preview HTML'
   ClientHeight = 256
   ParentFont = True
+  Position = poDesigned
   OnCreate = FormCreate
   ExplicitWidth = 351
   ExplicitHeight = 294
@@ -46,7 +47,7 @@ inherited AboutForm: TAboutForm
     Height = 13
     Caption = 'v0.0.0.0'
   end
-  object Button1: TButton
+  object btnOK: TButton
     Left = 136
     Top = 220
     Width = 75
@@ -70,5 +71,17 @@ inherited AboutForm: TAboutForm
     TabStop = True
     Transparent = False
     OnClick = txtAuthorClick
+  end
+  object txtURL: TStaticText
+    Left = 8
+    Top = 46
+    Width = 172
+    Height = 17
+    Cursor = crHandPoint
+    Caption = 'http://fossil.2of4.net/npp_preview'
+    ShowAccelChar = False
+    TabOrder = 2
+    Transparent = False
+    OnClick = txtURLClick
   end
 end
