@@ -17,6 +17,7 @@ type
     sbrIE: TStatusBar;
     pnlPreview: TPanel;
     pnlHTML: TPanel;
+    btnAbout: TButton;
     procedure btnRefreshClick(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -33,6 +34,7 @@ type
     procedure wbIEStatusTextChange(ASender: TObject; const Text: WideString);
     procedure wbIEStatusBar(ASender: TObject; StatusBar: WordBool);
     procedure btnCloseStatusbarClick(Sender: TObject);
+    procedure btnAboutClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -46,7 +48,7 @@ var
 implementation
 uses
   ShellAPI,
-  WebBrowser, SciSupport;
+  WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
 {$R *.dfm}
 
@@ -127,9 +129,14 @@ begin
 end;
 
 { ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.btnAboutClick(Sender: TObject);
+begin
+  (npp as TNppPluginPreviewHTML).CommandShowAbout;
+end;
+
+{ ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnCloseClick(Sender: TObject);
 begin
-  inherited;
   self.Hide;
 end;
 

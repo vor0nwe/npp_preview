@@ -46,12 +46,23 @@ inherited frmHTMLPreview: TfrmHTMLPreview
     object sbrIE: TStatusBar
       Left = 89
       Top = 10
-      Width = 326
+      Width = 295
       Height = 19
       Align = alNone
       Anchors = [akLeft, akRight, akBottom]
       Panels = <>
       SimplePanel = True
+    end
+    object btnAbout: TButton
+      Left = 390
+      Top = 6
+      Width = 25
+      Height = 25
+      Hint = 'About|About this plugin'
+      Anchors = [akTop, akRight]
+      Caption = '?'
+      TabOrder = 2
+      OnClick = btnAboutClick
     end
   end
   object pnlPreview: TPanel
@@ -72,8 +83,6 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       BevelOuter = bvNone
       Caption = 'pnlHTML'
       TabOrder = 0
-      ExplicitWidth = 496
-      ExplicitHeight = 369
       object wbIE: TWebBrowser
         Left = 0
         Top = 0

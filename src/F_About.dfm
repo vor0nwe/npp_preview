@@ -5,6 +5,8 @@ inherited AboutForm: TAboutForm
   ClientHeight = 256
   ParentFont = True
   OnCreate = FormCreate
+  ExplicitWidth = 351
+  ExplicitHeight = 294
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
@@ -36,6 +38,13 @@ inherited AboutForm: TAboutForm
     Height = 13
     Caption = 'by Martijn Coppoolse,'
     ShowAccelChar = False
+  end
+  object lblVersion: TLabel
+    Left = 189
+    Top = 8
+    Width = 42
+    Height = 13
+    Caption = 'v0.0.0.0'
   end
   object Button1: TButton
     Left = 136

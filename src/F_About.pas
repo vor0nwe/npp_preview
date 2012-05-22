@@ -14,6 +14,7 @@ type
     lblPlugin: TLabel;
     lblAuthor: TLabel;
     txtAuthor: TStaticText;
+    lblVersion: TLabel;
     procedure txtAuthorClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
@@ -36,6 +37,10 @@ uses
 { ------------------------------------------------------------------------------------------------ }
 procedure TAboutForm.FormCreate(Sender: TObject);
 begin
+  with TFileVersionInfo.Create(TSpecialFolders.DLLFullName) do begin
+    lblVersion.Caption := Format('v%s (%d.%d.%d.%d)', [FileVersion, MajorVersion, MinorVersion, Revision, Build]);
+    Free;
+  end;
   txtAuthor.Font.Color := clHotLight;
   txtAuthor.Font.Style := txtAuthor.Font.Style + [fsUnderline];
 end {TAboutForm.FormCreate};
@@ -46,7 +51,7 @@ var
   Subject: string;
 begin
   with TFileVersionInfo.Create(TSpecialFolders.DLLFullName) do begin
-    Subject := Self.Caption + Format(' v%s', [FileVersion]);
+    Subject := Self.Caption + Format(' v%s (%d.%d.%d.%d)', [FileVersion, MajorVersion, MinorVersion, Revision, Build]);
     Free;
   end;
   Subject := TIdURI.ParamsEncode(Subject);
