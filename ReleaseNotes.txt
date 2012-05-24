@@ -1,0 +1,9 @@
+Preview HTML plugin for Notepad++
+=================================
+
+v1.0.0.4, 2012-05-24
+--------
+First working release of the plugin, with 
+- a toolbar button,
+- a shortcut key (Ctrl-Alt-H, as usual reassignable through the shortcut mapper)
+- and of course, an HTML preview window!
