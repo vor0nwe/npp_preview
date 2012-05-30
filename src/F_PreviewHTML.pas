@@ -37,6 +37,7 @@ type
     procedure btnAboutClick(Sender: TObject);
   private
     { Private declarations }
+    function TransformXMLToHTML(const XML: WideString): string;
   public
     { Public declarations }
   end;
@@ -47,7 +48,8 @@ var
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI,
+  ShellAPI, ComObj,
+  RegExpr,
   WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
 {$R *.dfm}
@@ -75,13 +77,13 @@ var
   View: Integer;
   BufferID: Integer;
   hScintilla: THandle;
-  IsHTML: Boolean;
-  Size: Integer;
+  Lexer: NativeInt;
+  IsHTML, IsXML: Boolean;
+  Size: WPARAM;
   Filename: nppString;
   Content: UTF8String;
   HTML: string;
   HeadStart: Integer;
-  Language: TNppLang;
 begin
   SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
   if View = 0 then begin
@@ -91,7 +93,23 @@ begin
   end;
   BufferID := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTBUFFERID, 0, 0);
 
-  IsHTML := SCLEX_HTML = SendMessage(hScintilla, SCI_GETLEXER, 0, 0);
+  Lexer := SendMessage(hScintilla, SCI_GETLEXER, 0, 0);
+  IsHTML := (Lexer = SCLEX_HTML);
+  IsXML := (Lexer = SCLEX_XML);
+
+  if IsXML or IsHTML then begin
+    Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
+    SetLength(Content, Size);
+    SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
+    Content := UTF8String(PAnsiChar(Content));
+    HTML := string(Content);
+  end;
+
+  if IsXML then begin
+    HTML := TransformXMLToHTML(HTML);
+    IsHTML := Length(HTML) > 0;
+  end;
+
   pnlHTML.Visible := IsHTML;
   sbrIE.Visible := IsHTML and (Length(sbrIE.SimpleText) > 0);
   if IsHTML then begin
@@ -99,25 +117,15 @@ begin
     SetLength(Filename, Size);
     SetLength(Filename, SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nppPChar(Filename))));
 
-    Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
-    SetLength(Content, Size);
-    SendMessage(hScintilla, SCI_GETTEXT, Size, NativeInt(PAnsiChar(Content)));
-    Content := UTF8String(PAnsiChar(Content));
-
-    HTML := string(Content);
-
-    Language := TNppLang(SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETBUFFERLANGTYPE, BufferID, 0));
-    if Language = L_HTML then begin
-      if Pos('<base ', HTML) = 0 then begin
-        HeadStart := Pos('<head>', HTML);
-        if HeadStart > 0 then
-          Inc(HeadStart, 6)
-        else
-          HeadStart := 1;
-        Insert('<base href="' + Filename + '" />', HTML, HeadStart);
-      end;
+    if Pos('<base ', HTML) = 0 then begin
+      HeadStart := Pos('<head>', HTML);
+      if HeadStart > 0 then
+        Inc(HeadStart, 6)
+      else
+        HeadStart := 1;
+      Insert('<base href="' + Filename + '" />', HTML, HeadStart);
     end;
-    wbIE.LoadDocFromString(string(HTML));
+    wbIE.LoadDocFromString(HTML);
 
     if wbIE.GetDocument <> nil then
       self.UpdateDisplayInfo(wbIE.GetDocument.title)
@@ -180,6 +188,90 @@ begin
   inherited;
   SendMessage(self.Npp.NppData.NppHandle, NPPM_SETMENUITEMCHECK, self.CmdID, 1);
 end;
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.TransformXMLToHTML(const XML: WideString): string;
+  { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
+  function CreateDOMDocument: OleVariant;
+  var
+    nVersion: Integer;
+  begin
+    VarClear(Result);
+    for nVersion := 7 downto 4 do begin
+      try
+        Result := CreateOleObject(Format('MSXML2.DOMDocument.%d.0', [nVersion]));
+        if not VarIsClear(Result) then begin
+          if nVersion >= 4 then begin
+            Result.setProperty('NewParser', True);
+          end;
+          if nVersion >= 6 then begin
+            Result.setProperty('AllowDocumentFunction', True);
+            Result.setProperty('AllowXsltScript', True);
+            Result.setProperty('ResolveExternals', True);
+            Result.setProperty('UseInlineSchema', True);
+            Result.setProperty('ValidateOnParse', False);
+          end;
+          Break;
+        end;
+      except
+        VarClear(Result);
+      end;
+    end{for};
+  end {CreateDOMDocument};
+  { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
+var
+  bMethodHTML: Boolean;
+  xDoc, xPI, xStylesheet, xOutput: OleVariant;
+  rexHref: TRegExpr;
+begin
+  Result := '';
+  try
+    try
+      {--- MCO 30-05-2012: Check to see if there's an xml-stylesheet to convert the XML to HTML. ---}
+      xDoc := CreateDOMDocument;
+      if VarIsClear(xDoc) then Exit;
+      if not xDoc.LoadXML(XML) then Exit;
+
+      xPI := xDoc.selectSingleNode('//processing-instruction("xml-stylesheet")');
+      if VarIsClear(xPI) then Exit;
+
+      rexHref := TRegExpr.Create;
+      try
+        rexHref.ModifierI := False;
+        rexHref.Expression := '(^|\s+)href=["'']([^"'']*?)["'']';
+        if not rexHref.Exec(xPI.nodeValue) then Exit;
+
+        xStylesheet := CreateDOMDocument;
+        if not xStylesheet.Load(rexHref.Match[2]) then Exit;
+      finally
+        rexHref.Free;
+      end;
+
+      bMethodHTML := SameText(xDoc.documentElement.nodeName, 'html');
+      if not bMethodHTML then begin
+        xStylesheet.setProperty('SelectionNamespaces', 'xmlns:xsl="http://www.w3.org/1999/XSL/Transform"');
+        xOutput := xStylesheet.selectSingleNode('/*/xsl:output');
+        if VarIsClear(xOutput) then
+          Exit;
+
+        bMethodHTML := SameStr(VarToStrDef(xOutput.getAttribute('method'), 'xml'), 'html');
+      end;
+      if not bMethodHTML then Exit;
+
+      Result := xDoc.transformNode(xStylesheet.documentElement);
+    except
+      on E: Exception do begin
+        {--- MCO 30-05-2012: Ignore any errors; we weren't able to perform the transformation ---}
+        Result := '<html><title>Error transforming XML to HTML</title><body><pre style="color: red">' + StringReplace(E.Message, '<', '&lt;', [rfReplaceAll]) + '</pre></body></html>';
+      end;
+    end;
+  finally
+    VarClear(xOutput);
+    VarClear(xStylesheet);
+    VarClear(xPI);
+    VarClear(xDoc);
+  end;
+end {TfrmHTMLPreview.TransformXMLToHTML};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.wbIEBeforeNavigate2(ASender: TObject; const pDisp: IDispatch; const URL,
