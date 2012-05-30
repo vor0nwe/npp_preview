@@ -49,6 +49,7 @@ var
 implementation
 uses
   ShellAPI, ComObj,
+  RegExpr,
   WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
 {$R *.dfm}
@@ -219,43 +220,50 @@ function TfrmHTMLPreview.TransformXMLToHTML(const XML: WideString): string;
   end {CreateDOMDocument};
   { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
 var
-  MethodHTML: Boolean;
+  bMethodHTML: Boolean;
   xDoc, xPI, xStylesheet, xOutput: OleVariant;
+  rexHref: TRegExpr;
 begin
   Result := '';
   try
     try
       {--- MCO 30-05-2012: Check to see if there's an xml-stylesheet to convert the XML to HTML. ---}
       xDoc := CreateDOMDocument;
-      if VarIsClear(xDoc) then
-        Exit;
-      if not xDoc.LoadXML(XML) then
-        Exit;
+      if VarIsClear(xDoc) then Exit;
+      if not xDoc.LoadXML(XML) then Exit;
 
-      xPI := xDoc.selectSingleNode('processing-instruction::xml-stylesheet/@href');
-      if VarIsClear(xPI) then
-        Exit;
+      xPI := xDoc.selectSingleNode('//processing-instruction("xml-stylesheet")');
+      if VarIsClear(xPI) then Exit;
 
-      xStylesheet := CreateDOMDocument;
-      if not xStylesheet.Load(xPI.value) then
-        Exit;
+      rexHref := TRegExpr.Create;
+      try
+        rexHref.ModifierI := False;
+        rexHref.Expression := '(^|\s+)href=["'']([^"'']*?)["'']';
+        if not rexHref.Exec(xPI.nodeValue) then Exit;
 
-      MethodHTML := SameText(xDoc.documentElement.nodeName, 'html');
-      if not MethodHTML then begin
+        xStylesheet := CreateDOMDocument;
+        if not xStylesheet.Load(rexHref.Match[2]) then Exit;
+      finally
+        rexHref.Free;
+      end;
+
+      bMethodHTML := SameText(xDoc.documentElement.nodeName, 'html');
+      if not bMethodHTML then begin
         xStylesheet.setProperty('SelectionNamespaces', 'xmlns:xsl="http://www.w3.org/1999/XSL/Transform"');
         xOutput := xStylesheet.selectSingleNode('/*/xsl:output');
         if VarIsClear(xOutput) then
           Exit;
 
-        MethodHTML := SameStr(VarToStrDef(xOutput.getAttribute('method'), 'xml'), 'html');
+        bMethodHTML := SameStr(VarToStrDef(xOutput.getAttribute('method'), 'xml'), 'html');
       end;
-      if not MethodHTML then
-        Exit;
+      if not bMethodHTML then Exit;
 
       Result := xDoc.transformNode(xStylesheet.documentElement);
     except
-      {--- MCO 30-05-2012: Ignore any errors; we weren't able to perform the transformation ---}
-      Result := '';
+      on E: Exception do begin
+        {--- MCO 30-05-2012: Ignore any errors; we weren't able to perform the transformation ---}
+        Result := '<html><title>Error transforming XML to HTML</title><body><pre style="color: red">' + StringReplace(E.Message, '<', '&lt;', [rfReplaceAll]) + '</pre></body></html>';
+      end;
     end;
   finally
     VarClear(xOutput);

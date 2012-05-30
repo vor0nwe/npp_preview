@@ -27,7 +27,8 @@ uses
   F_PreviewHTML in '..\F_PreviewHTML.pas' {HelloWorldDockingForm},
   WebBrowser in '..\lib\WebBrowser.pas',
   L_VersionInfoW in '..\common\L_VersionInfoW.pas',
-  L_SpecialFolders in '..\common\L_SpecialFolders.pas';
+  L_SpecialFolders in '..\common\L_SpecialFolders.pas',
+  RegExpr in '..\common\RegExpr.pas';
 
 {$R *.res}
 
