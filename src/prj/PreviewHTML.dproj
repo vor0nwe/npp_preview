@@ -33,6 +33,12 @@
 			<CfgParent>Base</CfgParent>
 			<Base>true</Base>
 		</PropertyGroup>
+		<PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
+			<Cfg_2_Win32>true</Cfg_2_Win32>
+			<CfgParent>Cfg_2</CfgParent>
+			<Cfg_2>true</Cfg_2>
+			<Base>true</Base>
+		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
 			<PostBuildEventCancelOnError>false</PostBuildEventCancelOnError>
 			<PostBuildEvent><![CDATA["C:\MC\Run\Util\Compression\UPX\upx.exe" --best -q "$(OUTPUTPATH)"
@@ -76,6 +82,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 			<DCC_Optimize>false</DCC_Optimize>
 			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
+		</PropertyGroup>
+		<PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+			<PostBuildEvent><![CDATA[]]></PostBuildEvent>
 		</PropertyGroup>
 		<ItemGroup>
 			<DelphiCompile Include="$(MainSource)">
@@ -125,6 +134,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
 					<Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dcloffice2k160.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dclofficexp160.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+						<Excluded_Packages Name="$(BDSBIN)\bcboffice2k160.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
+						<Excluded_Packages Name="$(BDSBIN)\bcbofficexp160.bpl">Embarcadero C++Builder Office XP Servers Package</Excluded_Packages>
 					</Excluded_Packages>
 					<VersionInfo>
 						<VersionInfo Name="IncludeVerInfo">False</VersionInfo>
@@ -197,14 +208,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='OSX32'">
-			<PreBuildEvent/>
-			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-			<PreLinkEvent/>
-			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
-			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
 			<PreBuildEvent/>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
