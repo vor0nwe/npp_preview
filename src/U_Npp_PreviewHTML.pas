@@ -28,6 +28,8 @@ var
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
+uses
+  Registry;
 
 { ================================================================================================ }
 { TNppPluginPreviewHTML }
@@ -36,6 +38,7 @@ implementation
 constructor TNppPluginPreviewHTML.Create;
 var
   sk: TShortcutKey;
+  RegKey: TRegistry;
 begin
   inherited;
   self.PluginName := '&Preview HTML';
@@ -47,7 +50,19 @@ begin
   self.AddFuncSeparator;
 
   self.AddFuncItem('&About', _FuncShowAbout);
-end;
+
+
+  RegKey := TRegistry.Create;
+  try
+    RegKey.RootKey := HKEY_CURRENT_USER;
+    if RegKey.OpenKey('SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION', True) then begin
+      // TODO: try to figure out the installed version of IE, and use the major version * 1000
+      RegKey.WriteInteger('notepad++.exe', 9000);
+    end;
+  finally
+    RegKey.Free;
+  end;
+end {TNppPluginPreviewHTML.Create};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure _FuncReplaceHelloWorld; cdecl;

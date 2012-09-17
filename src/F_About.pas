@@ -4,21 +4,19 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, NppForms, StdCtrls;
+  Dialogs, NppForms, StdCtrls, ExtCtrls;
 
 type
   TAboutForm = class(TNppForm)
     btnOK: TButton;
-    Label1: TLabel;
-    Label2: TLabel;
+    lblBasedOn: TLabel;
+    lblTribute: TLinkLabel;
     lblPlugin: TLabel;
-    lblAuthor: TLabel;
-    txtAuthor: TStaticText;
+    lblAuthor: TLinkLabel;
     lblVersion: TLabel;
-    txtURL: TStaticText;
-    procedure txtAuthorClick(Sender: TObject);
+    lblURL: TLinkLabel;
     procedure FormCreate(Sender: TObject);
-    procedure txtURLClick(Sender: TObject);
+    procedure lblLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
   private
     { Private declarations }
   public
@@ -30,7 +28,7 @@ var
 
 implementation
 uses
-  ShellAPI,
+  ShellAPI, StrUtils,
   IdURI,
   L_VersionInfoW, L_SpecialFolders,
   NppPlugin;
@@ -55,37 +53,30 @@ begin
     lblVersion.Caption := Format('v%s (%d.%d.%d.%d)', [FileVersion, MajorVersion, MinorVersion, Revision, Build]);
     Free;
   end;
-
-  txtAuthor.Font.Color := clHotLight;
-  txtAuthor.Font.Style := txtAuthor.Font.Style + [fsUnderline];
-  txtURL.Font.Color := clHotLight;
-  txtURL.Font.Style := txtAuthor.Font.Style + [fsUnderline];
 end {TAboutForm.FormCreate};
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TAboutForm.txtAuthorClick(Sender: TObject);
+procedure TAboutForm.lblLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
 var
-  Subject: string;
+  URL, Subject: string;
 begin
-  with TFileVersionInfo.Create(TSpecialFolders.DLLFullName) do begin
-    Subject := Self.Caption + Format(' v%s (%d.%d.%d.%d)', [FileVersion, MajorVersion, MinorVersion, Revision, Build]);
-    Free;
+  if LinkType = sltURL then begin
+    URL := Link;
+    if StartsText('http', URL) then begin
+      with TFileVersionInfo.Create(TSpecialFolders.DLLFullName) do begin
+        URL := URL + '?client=' + TIdURI.ParamsEncode(Format('%s/%s', [Internalname, FileVersion])) +
+                      '&version=' + TIdURI.ParamsEncode(Format('%d.%d.%d.%d', [MajorVersion, MinorVersion, Revision, Build]));
+        Free;
+      end;
+    end else if StartsText('mailto:', URL) then begin
+      with TFileVersionInfo.Create(TSpecialFolders.DLLFullName) do begin
+        Subject := Self.Caption + Format(' v%s (%d.%d.%d.%d)', [FileVersion, MajorVersion, MinorVersion, Revision, Build]);
+        Free;
+      end;
+      URL := URL + '?subject=' + TIdURI.ParamsEncode(Subject);
+    end;
+    ShellExecute(Self.Handle, nil, PChar(URL), nil, nil, SW_SHOWDEFAULT);
   end;
-  Subject := TIdURI.ParamsEncode(Subject);
-  ShellExecute(Self.Handle, nil, PChar('mailto:vor0nwe@users.sf.net?subject=' + Subject), nil, nil, SW_SHOWDEFAULT);
-end {TAboutForm.txtAuthorClick};
-
-{ ------------------------------------------------------------------------------------------------ }
-procedure TAboutForm.txtURLClick(Sender: TObject);
-var
-  Params: string;
-begin
-  with TFileVersionInfo.Create(TSpecialFolders.DLLFullName) do begin
-    Params := '?client=' + TIdURI.ParamsEncode(Format('%s/%s', [Internalname, FileVersion])) +
-                '&version=' + TIdURI.ParamsEncode(Format('%d.%d.%d.%d', [MajorVersion, MinorVersion, Revision, Build]));
-    Free;
-  end;
-  ShellExecute(Self.Handle, nil, PChar(TStaticText(Sender).Caption + Params), nil, nil, SW_SHOWDEFAULT);
-end {TAboutForm.txtURLClick};
+end {TAboutForm.lblLinkClick};
 
 end.

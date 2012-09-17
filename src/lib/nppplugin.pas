@@ -23,7 +23,7 @@ interface
 
 uses
   Windows,Messages,SciSupport,SysUtils,
-  Dialogs,Classes,Forms;
+  Classes{$IFDEF NPPFORMS},Forms,Dialogs{$ENDIF};
 
 const
   FuncItemNameLen=64;
@@ -498,8 +498,10 @@ implementation
 }
 procedure TNppPlugin.BeforeDestruction;
 begin
+  {$IFDEF NPPFORMS}
   Application.Handle := 0;
   Application.Terminate;
+  {$ENDIF}
   inherited;
 end;
 
@@ -630,7 +632,9 @@ end;
 procedure TNppPlugin.SetInfo(NppData: TNppData);
 begin
   self.NppData := NppData;
+  {$IFDEF NPPFORMS}
   Application.Handle := NppData.NppHandle;
+  {$ENDIF}
 end;
 
 // utils

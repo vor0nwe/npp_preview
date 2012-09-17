@@ -10,19 +10,12 @@ inherited AboutForm: TAboutForm
   ExplicitHeight = 294
   PixelsPerInch = 96
   TextHeight = 13
-  object Label1: TLabel
+  object lblBasedOn: TLabel
     Left = 8
     Top = 96
     Width = 152
     Height = 13
     Caption = 'Based on the example plugin by'
-  end
-  object Label2: TLabel
-    Left = 8
-    Top = 115
-    Width = 199
-    Height = 13
-    Caption = 'Damjan Zobo Cvetko, zobo@users.sf.net'
   end
   object lblPlugin: TLabel
     Left = 8
@@ -32,20 +25,34 @@ inherited AboutForm: TAboutForm
     Caption = 'HTML Preview plugin for Notepad++'
     ShowAccelChar = False
   end
-  object lblAuthor: TLabel
-    Left = 8
-    Top = 27
-    Width = 105
-    Height = 13
-    Caption = 'by Martijn Coppoolse,'
-    ShowAccelChar = False
-  end
   object lblVersion: TLabel
     Left = 189
     Top = 8
     Width = 42
     Height = 13
     Caption = 'v0.0.0.0'
+  end
+  object lblAuthor: TLinkLabel
+    Left = 8
+    Top = 27
+    Width = 223
+    Height = 17
+    Caption = 
+      'by Martijn Coppoolse, <a href="mailto:vor0nwe@users.sf.net">vor0' +
+      'nwe@users.sf.net</a>'
+    TabOrder = 1
+    OnLinkClick = lblLinkClick
+  end
+  object lblTribute: TLinkLabel
+    Left = 8
+    Top = 115
+    Width = 203
+    Height = 17
+    Caption = 
+      'Damjan Zobo Cvetko, <a href="mailto:zobo@users.sf.net">zobo@user' +
+      's.sf.net</a>'
+    TabOrder = 3
+    OnLinkClick = lblLinkClick
   end
   object btnOK: TButton
     Left = 136
@@ -59,29 +66,16 @@ inherited AboutForm: TAboutForm
     ModalResult = 1
     TabOrder = 0
   end
-  object txtAuthor: TStaticText
-    Left = 119
-    Top = 27
-    Width = 115
-    Height = 17
-    Cursor = crHandPoint
-    Caption = 'vor0nwe@users.sf.net'
-    ShowAccelChar = False
-    TabOrder = 1
-    TabStop = True
-    Transparent = False
-    OnClick = txtAuthorClick
-  end
-  object txtURL: TStaticText
+  object lblURL: TLinkLabel
     Left = 8
     Top = 46
     Width = 172
     Height = 17
     Cursor = crHandPoint
-    Caption = 'http://fossil.2of4.net/npp_preview'
-    ShowAccelChar = False
+    Caption = 
+      '<a href="http://fossil.2of4.net/npp_preview">http://fossil.2of4.' +
+      'net/npp_preview</a>'
     TabOrder = 2
-    Transparent = False
-    OnClick = txtURLClick
+    OnLinkClick = lblLinkClick
   end
 end
