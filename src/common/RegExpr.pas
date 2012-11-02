@@ -2295,8 +2295,7 @@ function TRegExpr.ParseAtom (var flagp : integer) : PRegExprChar;
              if RangeEnd = EscChar then begin
                {$IFDEF UniCode} //###0.935
                if (ord ((regparse + 1)^) < 256)
-                  and (char ((regparse + 1)^)
-                        in ['d', 'D', 's', 'S', 'w', 'W']) then begin
+                  and (CharInSet(char((regparse + 1)^), ['d', 'D', 's', 'S', 'w', 'W'])) then begin
                {$ELSE}
                if (regparse + 1)^ in ['d', 'D', 's', 'S', 'w', 'W'] then begin
                {$ENDIF}
@@ -3678,7 +3677,7 @@ function TRegExpr.Substitute (const ATemplate : RegExprString) : RegExprString;
     else
      while (p < TemplateEnd) and
       {$IFDEF UniCode} //###0.935
-      (ord (p^) < 256) and (char (p^) in Digits)
+      (ord (p^) < 256) and (CharInSet(char(p^), Digits))
       {$ELSE}
       (p^ in Digits)
       {$ENDIF}

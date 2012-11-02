@@ -78,7 +78,7 @@ var
   BufferID: Integer;
   hScintilla: THandle;
   Lexer: NativeInt;
-  IsHTML, IsXML: Boolean;
+  IsHTML, IsXML, IsCustom: Boolean;
   Size: WPARAM;
   Filename: nppString;
   Content: UTF8String;
@@ -97,7 +97,10 @@ begin
   IsHTML := (Lexer = SCLEX_HTML);
   IsXML := (Lexer = SCLEX_XML);
 
-  if IsXML or IsHTML then begin
+{$MESSAGE HINT 'TODO: determine whether the current document matches a custom filter'}
+  IsCustom := False;
+
+  if IsXML or IsHTML or IsCustom then begin
     Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
     SetLength(Content, Size);
     SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
@@ -105,7 +108,10 @@ begin
     HTML := string(Content);
   end;
 
-  if IsXML then begin
+  if IsCustom then begin
+{$MESSAGE HINT 'TODO: execute the custom filter, and assign the output to the HTML variable'}
+    IsHTML := Length(HTML) > 0;
+  end else if IsXML then begin
     HTML := TransformXMLToHTML(HTML);
     IsHTML := Length(HTML) > 0;
   end;
