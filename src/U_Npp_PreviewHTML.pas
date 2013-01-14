@@ -52,11 +52,20 @@ begin
   self.AddFuncItem('&About', _FuncShowAbout);
 
 
+  {--- 2013-01-14 Martijn: By default, the TWebBrowser control works in IE7 browser mode.
+    Usually, Notepad++ users will want to use a more recent browser mode.
+    See http://msdn.microsoft.com/en-us/library/ee330730.aspx#BROWSER_EMULATION
+      
+    TODO: Check this value; if we need to change it, notify the user that Notepad++ must be 
+      restarted.
+    TODO: Determine the installed version of IE, and use the major version * 1000.
+    TODO: Instead of hardcoding 'notepad++.exe', use the executable name.
+    TODO: Add a menu item to allow users to explicitly choose an emulation mode?
+  ---}
   RegKey := TRegistry.Create;
   try
     RegKey.RootKey := HKEY_CURRENT_USER;
     if RegKey.OpenKey('SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION', True) then begin
-      // TODO: try to figure out the installed version of IE, and use the major version * 1000
       RegKey.WriteInteger('notepad++.exe', 9000);
     end;
   finally
