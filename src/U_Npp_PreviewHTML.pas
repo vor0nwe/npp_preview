@@ -68,17 +68,19 @@ begin
   if MajorIEVersion > 7 then begin
     self.AddFuncSeparator;
     self.AddFuncItem('View as IE&7', _FuncSetIE7, EmulatedVersion = 7);
-    self.AddFuncItem('View as IE&8', _FuncSetIE8, EmulatedVersion = 8);
   end;
-  if MajorIEVersion > 8 then
+
+  if MajorIEVersion >= 8 then
+    self.AddFuncItem('View as IE&8', _FuncSetIE8, EmulatedVersion = 8);
+  if MajorIEVersion >= 9 then
     self.AddFuncItem('View as IE&9', _FuncSetIE9, EmulatedVersion = 9);
-  if MajorIEVersion > 9 then
+  if MajorIEVersion >= 10 then
     self.AddFuncItem('View as IE1&0', _FuncSetIE10, EmulatedVersion = 10);
-  if MajorIEVersion > 10 then
+  if MajorIEVersion >= 11 then
     self.AddFuncItem('View as IE1&1', _FuncSetIE11, EmulatedVersion = 11);
-  if MajorIEVersion > 11 then
+  if MajorIEVersion >= 12 then
     self.AddFuncItem('View as IE1&2', _FuncSetIE12, EmulatedVersion = 12);
-  if MajorIEVersion > 12 then
+  if MajorIEVersion >= 13 then
     self.AddFuncItem('View as IE1&3', _FuncSetIE13, EmulatedVersion = 13);
 
   self.AddFuncSeparator;

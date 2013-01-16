@@ -15,6 +15,7 @@ type
     lblAuthor: TLinkLabel;
     lblVersion: TLabel;
     lblURL: TLinkLabel;
+    lblIEVersion: TLinkLabel;
     procedure FormCreate(Sender: TObject);
     procedure lblLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
   private
@@ -30,7 +31,7 @@ implementation
 uses
   ShellAPI, StrUtils,
   IdURI,
-  L_VersionInfoW, L_SpecialFolders,
+  L_VersionInfoW, L_SpecialFolders, WebBrowser,
   NppPlugin;
 
 {$R *.dfm}
@@ -53,6 +54,8 @@ begin
     lblVersion.Caption := Format('v%s (%d.%d.%d.%d)', [FileVersion, MajorVersion, MinorVersion, Revision, Build]);
     Free;
   end;
+
+  lblIEVersion.Caption := Format(lblIEVersion.Caption, [GetIEVersion]);
 end {TAboutForm.FormCreate};
 
 { ------------------------------------------------------------------------------------------------ }

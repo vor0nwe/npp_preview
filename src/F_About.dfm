@@ -6,8 +6,6 @@ inherited AboutForm: TAboutForm
   ParentFont = True
   Position = poDesigned
   OnCreate = FormCreate
-  ExplicitWidth = 351
-  ExplicitHeight = 294
   PixelsPerInch = 96
   TextHeight = 13
   object lblBasedOn: TLabel
@@ -77,5 +75,13 @@ inherited AboutForm: TAboutForm
       'net/npp_preview</a>'
     TabOrder = 2
     OnLinkClick = lblLinkClick
+  end
+  object lblIEVersion: TLinkLabel
+    Left = 8
+    Top = 160
+    Width = 200
+    Height = 17
+    Caption = 'Internet Explorer version %s is installed.'
+    TabOrder = 4
   end
 end
