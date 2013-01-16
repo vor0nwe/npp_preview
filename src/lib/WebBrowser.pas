@@ -33,19 +33,24 @@ uses
 type
 
   TWBHelper = class helper for TWebBrowser
-    public
-      procedure CheckDocReady();
-      procedure LoadBlankDoc();
-      procedure LoadDocFromStream(Stream: TStream);
-      procedure LoadDocFromString(const HTMLString: string);
-      function  GetDocument(): IHTMLDocument2;
-      function  GetRootElement(): IHTMLElement;
-      procedure ExecJS(const Code: string);
+  public
+    procedure CheckDocReady();
+    procedure LoadBlankDoc();
+    procedure LoadDocFromStream(Stream: TStream);
+    procedure LoadDocFromString(const HTMLString: string);
+    function  GetDocument(): IHTMLDocument2;
+    function  GetRootElement(): IHTMLElement;
+    procedure ExecJS(const Code: string);
   end;
+
+
+function GetBrowserEmulation: Integer;
+procedure SetBrowserEmulation(const Value: Integer);
+function GetIEVersion: string;
 
 implementation
 uses
-  SysUtils, Forms, ActiveX, Variants;
+  SysUtils, Forms, ActiveX, Variants, Registry, Windows;
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TWBHelper.ExecJS(const Code: string);
@@ -105,5 +110,72 @@ begin
     Result := Result.parentElement;
   end;
 end;
+
+
+(*
+See http://msdn.microsoft.com/en-us/library/ee330730.aspx#BROWSER_EMULATION
+*)
+
+{ ------------------------------------------------------------------------------------------------ }
+function GetBrowserEmulation: Integer;
+var
+  ExeName: string;
+  RegKey: TRegistry;
+begin
+  Result := 0;
+  ExeName := ExtractFileName(ParamStr(0));
+
+  RegKey := TRegistry.Create;
+  try
+    RegKey.RootKey := HKEY_CURRENT_USER;
+    if RegKey.OpenKey('SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION', True) then begin
+      Result := RegKey.ReadInteger(ExeName);
+    end;
+  finally
+    RegKey.Free;
+  end;
+
+  if Result = 0 then
+    Result := 7000; // Default value for applications hosting the WebBrowser Control.
+end {GetBrowserEmulation};
+{ ------------------------------------------------------------------------------------------------ }
+procedure SetBrowserEmulation(const Value: Integer);
+var
+  ExeName: string;
+  RegKey: TRegistry;
+begin
+  ExeName := ExtractFileName(ParamStr(0));
+
+  RegKey := TRegistry.Create;
+  try
+    RegKey.RootKey := HKEY_CURRENT_USER;
+    if RegKey.OpenKey('SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION', True) then begin
+      RegKey.WriteInteger(ExeName, Value);
+    end;
+  finally
+    RegKey.Free;
+  end;
+end {SetBrowserEmulation};
+
+{ ------------------------------------------------------------------------------------------------ }
+function GetIEVersion: string;
+var
+  Reg: TRegistry;
+begin
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_LOCAL_MACHINE;
+    Reg.OpenKeyReadOnly('Software\Microsoft\Internet Explorer');
+    try
+      Result := Reg.ReadString('Version');
+    except
+      Result := '';
+    end;
+    Reg.CloseKey;
+  finally
+    Reg.Free;
+  end;
+end {GetIEVersion};
+
 
 end.

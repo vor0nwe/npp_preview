@@ -457,11 +457,15 @@ type
     function AddFuncSeparator: Integer;
     function AddFuncItem(Name: nppString; Func: PFUNCPLUGINCMD): Integer; overload;
     function AddFuncItem(Name: nppString; Func: PFUNCPLUGINCMD; ShortcutKey: TShortcutKey): Integer; overload;
+    function AddFuncItem(Name: nppString; Func: PFUNCPLUGINCMD; Checked: Boolean): Integer; overload;
+    function AddFuncItem(Name: nppString; Func: PFUNCPLUGINCMD; ShortcutKey: TShortcutKey; Checked: Boolean): Integer; overload;
   public
     NppData: TNppData;
     constructor Create;
     destructor Destroy; override;
     procedure BeforeDestruction; override;
+
+    function Caption: string;
 
     function CmdIdFromDlgId(DlgId: Integer): Integer;
 
@@ -551,6 +555,19 @@ begin
   self.FuncArray[i].ShortcutKey.IsShift := ShortcutKey.IsShift;
   self.FuncArray[i].ShortcutKey.Key := ShortcutKey.Key; // need widechar ??
   Result := i;
+end;
+
+function TNppPlugin.AddFuncItem(Name: nppString; Func: PFUNCPLUGINCMD; Checked: Boolean): Integer;
+begin
+  Result := AddFuncItem(Name, Func);
+  self.FuncArray[Result].Checked := Checked;
+end;
+
+function TNppPlugin.AddFuncItem(Name: nppString; Func: PFUNCPLUGINCMD; ShortcutKey: TShortcutKey;
+  Checked: Boolean): Integer;
+begin
+  Result := AddFuncItem(Name, Func, ShortcutKey);
+  self.FuncArray[Result].Checked := Checked;
 end;
 
 function TNppPlugin.AddFuncSeparator: Integer;
@@ -689,6 +706,11 @@ begin
   // override these
 end;
 
+
+function TNppPlugin.Caption: string;
+begin
+  Result := StringReplace(Self.PluginName, '&', '', []);
+end;
 
 function TNppPlugin.CmdIdFromDlgId(DlgId: Integer): Integer;
 begin

@@ -15,6 +15,7 @@ type
     procedure CommandShowPreview;
     procedure CommandReplaceHelloWorld;
     procedure CommandShowAbout;
+    procedure CommandSetIEVersion(const BrowserEmulation: Integer);
     procedure DoNppnToolbarModification; override;
     procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
   end;
@@ -23,13 +24,22 @@ procedure _FuncShowPreview; cdecl;
 procedure _FuncReplaceHelloWorld; cdecl;
 procedure _FuncShowAbout; cdecl;
 
+procedure _FuncSetIE7; cdecl;
+procedure _FuncSetIE8; cdecl;
+procedure _FuncSetIE9; cdecl;
+procedure _FuncSetIE10; cdecl;
+procedure _FuncSetIE11; cdecl;
+procedure _FuncSetIE12; cdecl;
+procedure _FuncSetIE13; cdecl;
+
+
 var
   Npp: TNppPluginPreviewHTML;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  Registry;
+  WebBrowser, Registry;
 
 { ================================================================================================ }
 { TNppPluginPreviewHTML }
@@ -37,8 +47,9 @@ uses
 { ------------------------------------------------------------------------------------------------ }
 constructor TNppPluginPreviewHTML.Create;
 var
+  IEVersion: string;
+  MajorIEVersion, Code, EmulatedVersion: Integer;
   sk: TShortcutKey;
-  RegKey: TRegistry;
 begin
   inherited;
   self.PluginName := '&Preview HTML';
@@ -47,30 +58,32 @@ begin
   sk.Key := 'H'; // Ctrl-Shift-H
   self.AddFuncItem('&Preview HTML', _FuncShowPreview, sk);
 
+  IEVersion := GetIEVersion;
+  Val(IEVersion, MajorIEVersion, Code);
+  if Code <= 1 then
+    MajorIEVersion := 0;
+
+  EmulatedVersion := GetBrowserEmulation div 1000;
+
+  if MajorIEVersion > 7 then begin
+    self.AddFuncSeparator;
+    self.AddFuncItem('View as IE&7', _FuncSetIE7, EmulatedVersion = 7);
+    self.AddFuncItem('View as IE&8', _FuncSetIE8, EmulatedVersion = 8);
+  end;
+  if MajorIEVersion > 8 then
+    self.AddFuncItem('View as IE&9', _FuncSetIE9, EmulatedVersion = 9);
+  if MajorIEVersion > 9 then
+    self.AddFuncItem('View as IE1&0', _FuncSetIE10, EmulatedVersion = 10);
+  if MajorIEVersion > 10 then
+    self.AddFuncItem('View as IE1&1', _FuncSetIE11, EmulatedVersion = 11);
+  if MajorIEVersion > 11 then
+    self.AddFuncItem('View as IE1&2', _FuncSetIE12, EmulatedVersion = 12);
+  if MajorIEVersion > 12 then
+    self.AddFuncItem('View as IE1&3', _FuncSetIE13, EmulatedVersion = 13);
+
   self.AddFuncSeparator;
 
   self.AddFuncItem('&About', _FuncShowAbout);
-
-
-  {--- 2013-01-14 Martijn: By default, the TWebBrowser control works in IE7 browser mode.
-    Usually, Notepad++ users will want to use a more recent browser mode.
-    See http://msdn.microsoft.com/en-us/library/ee330730.aspx#BROWSER_EMULATION
-      
-    TODO: Check this value; if we need to change it, notify the user that Notepad++ must be 
-      restarted.
-    TODO: Determine the installed version of IE, and use the major version * 1000.
-    TODO: Instead of hardcoding 'notepad++.exe', use the executable name.
-    TODO: Add a menu item to allow users to explicitly choose an emulation mode?
-  ---}
-  RegKey := TRegistry.Create;
-  try
-    RegKey.RootKey := HKEY_CURRENT_USER;
-    if RegKey.OpenKey('SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION', True) then begin
-      RegKey.WriteInteger('notepad++.exe', 9000);
-    end;
-  finally
-    RegKey.Free;
-  end;
 end {TNppPluginPreviewHTML.Create};
 
 { ------------------------------------------------------------------------------------------------ }
@@ -88,6 +101,42 @@ procedure _FuncShowPreview; cdecl;
 begin
   Npp.CommandShowPreview;
 end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncSetIE7; cdecl;
+begin
+  Npp.CommandSetIEVersion(7000);
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncSetIE8; cdecl;
+begin
+  Npp.CommandSetIEVersion(8000);
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncSetIE9; cdecl;
+begin
+  Npp.CommandSetIEVersion(9000);
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncSetIE10; cdecl;
+begin
+  Npp.CommandSetIEVersion(10000);
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncSetIE11; cdecl;
+begin
+  Npp.CommandSetIEVersion(11000);
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncSetIE12; cdecl;
+begin
+  Npp.CommandSetIEVersion(12000);
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncSetIE13; cdecl;
+begin
+  Npp.CommandSetIEVersion(13000);
+end;
+
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandReplaceHelloWorld;
@@ -96,6 +145,24 @@ var
 begin
   s := 'Hello World';
   SendMessage(self.NppData.ScintillaMainHandle, SCI_REPLACESEL, 0, LPARAM(PAnsiChar(s)));
+end;
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TNppPluginPreviewHTML.CommandSetIEVersion(const BrowserEmulation: Integer);
+begin
+  if GetBrowserEmulation <> BrowserEmulation then begin
+    SetBrowserEmulation(BrowserEmulation);
+    MessageBox(Npp.NppData.NppHandle,
+                PChar(Format('The preview browser mode has been set to correspond to Internet Explorer version %d.'#13#10#13#10 +
+                             'Please restart Notepad++ for the new browser mode to be taken into account.',
+                             [BrowserEmulation div 1000])),
+                PChar(Self.Caption), MB_ICONWARNING);
+  end else begin
+    MessageBox(Npp.NppData.NppHandle,
+                PChar(Format('The preview browser mode was already set to Internet Explorer version %d.',
+                             [BrowserEmulation div 1000])),
+                PChar(Self.Caption), MB_ICONINFORMATION);
+  end;
 end;
 
 { ------------------------------------------------------------------------------------------------ }
