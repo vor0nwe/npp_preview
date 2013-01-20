@@ -18,10 +18,10 @@ type
     procedure CommandSetIEVersion(const BrowserEmulation: Integer);
     procedure DoNppnToolbarModification; override;
     procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
-  end;
+  end {TNppPluginPreviewHTML};
 
-procedure _FuncShowPreview; cdecl;
 procedure _FuncReplaceHelloWorld; cdecl;
+procedure _FuncShowPreview; cdecl;
 procedure _FuncShowAbout; cdecl;
 
 procedure _FuncSetIE7; cdecl;
@@ -147,7 +147,7 @@ var
 begin
   s := 'Hello World';
   SendMessage(self.NppData.ScintillaMainHandle, SCI_REPLACESEL, 0, LPARAM(PAnsiChar(s)));
-end;
+end {TNppPluginPreviewHTML.CommandReplaceHelloWorld};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandSetIEVersion(const BrowserEmulation: Integer);
@@ -165,7 +165,7 @@ begin
                              [BrowserEmulation div 1000])),
                 PChar(Self.Caption), MB_ICONINFORMATION);
   end;
-end;
+end {TNppPluginPreviewHTML.CommandSetIEVersion};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandShowAbout;
@@ -174,7 +174,7 @@ begin
     ShowModal;
     Free;
   end;
-end;
+end {TNppPluginPreviewHTML.CommandShowAbout};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandShowPreview;
@@ -194,7 +194,7 @@ begin
   if frmHTMLPreview.Visible then begin
     frmHTMLPreview.btnRefresh.Click;
   end;
-end;
+end {TNppPluginPreviewHTML.CommandShowPreview};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.DoNppnToolbarModification;
@@ -204,7 +204,7 @@ begin
   tb.ToolbarIcon := 0;
   tb.ToolbarBmp := LoadImage(Hinstance, 'TB_PREVIEW_HTML', IMAGE_BITMAP, 0, 0, (LR_DEFAULTSIZE or LR_LOADMAP3DCOLORS));
   SendMessage(self.NppData.NppHandle, NPPM_ADDTOOLBARICON, WPARAM(self.CmdIdFromDlgId(0)), LPARAM(@tb));
-end;
+end {TNppPluginPreviewHTML.DoNppnToolbarModification};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.DoNppnBufferActivated(const BufferID: Cardinal);
@@ -214,7 +214,7 @@ begin
 {$MESSAGE HINT 'TODO: only refresh the preview if it’s configured to follow the active tab'}
     frmHTMLPreview.btnRefresh.Click;
   end;
-end;
+end {TNppPluginPreviewHTML.DoNppnBufferActivated};
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
