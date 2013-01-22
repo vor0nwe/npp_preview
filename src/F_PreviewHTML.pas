@@ -103,7 +103,6 @@ var
   HTML: string;
   HeadStart: Integer;
   FilterName: string;
-  docEl: IHTMLElement2;
 begin
   try
     SaveScrollPos;
@@ -135,7 +134,6 @@ begin
     end;
 
     if IsCustom then begin
-      {--- MCO 22-01-2013: execute the custom filter, and assign the output to the HTML variable ---}
       HTML := ExecuteCustomFilter(FilterName, HTML);
       IsHTML := Length(HTML) > 0;
     end else if IsXML then begin
@@ -180,41 +178,50 @@ end {TfrmHTMLPreview.btnRefreshClick};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.SaveScrollPos;
 var
-  Index, ScrollTop: Integer;
+  Index, ScrollTop, ScrollLeft: Integer;
+  docEl: IHTMLElement2;
 begin
   if FBufferID = -1 then
     Exit;
 
   if Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
-    ScrollTop := ((wbIE.Document as IHTMLDocument3).documentElement AS IHTMLElement2).scrollTop;
+    docEl := (wbIE.Document as IHTMLDocument3).documentElement AS IHTMLElement2;
+    ScrollTop := docEl.scrollTop;
+    ScrollLeft := docEl.scrollLeft;
   end else begin
     ScrollTop := -1;
+    ScrollLeft := -1;
   end;
   Index := FScrollPositions.IndexOfObject(TObject(FBufferID));
   if Index = -1 then
-    FScrollPositions.AddObject(IntToStr(ScrollTop), TObject(FBufferID))
+    FScrollPositions.AddObject(IntToStr(ScrollTop) + '=' + IntToStr(ScrollLeft), TObject(FBufferID))
   else
-    FScrollPositions[Index] := IntToStr(ScrollTop);
+    FScrollPositions[Index] := IntToStr(ScrollTop) + '=' + IntToStr(ScrollLeft);
   {$MESSAGE HINT 'TODO: We need to watch for closing documents, so we can remove those buffer IDs from our list — MCO 22-01-2013'}
 end {TfrmHTMLPreview.SaveScrollPos};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.RestoreScrollPos(const BufferID: NativeInt);
 var
-  Index, ScrollTop: Integer;
+  Index, ScrollTop, ScrollLeft: Integer;
+  docEl: IHTMLElement2;
 begin
   {--- MCO 22-01-2013: Look up this buffer's scroll position; if we know one, wait for the page
                           to finish loading, then restore the scroll position. ---}
-  {$MESSAGE HINT 'TODO: This would be better if done in the browsercontrol's DocumentComplete event — MCO 22-01-2013'}
   Index := FScrollPositions.IndexOfObject(TObject(BufferID));
   if Index > -1 then begin
-    ScrollTop := StrToInt(FScrollPositions[Index]);
+    ScrollTop := StrToInt(FScrollPositions.Names[Index]);
+    ScrollLeft := StrToInt(FScrollPositions.ValueFromIndex[Index]);
     if ScrollTop <> -1 then begin
+      {$MESSAGE HINT 'TODO: This would be better if done in the browsercontrol's DocumentComplete event,
+                            so as to prevent blocking Notepad++ — MCO 22-01-2013'}
       while not wbIE.ReadyState in [READYSTATE_INTERACTIVE, READYSTATE_COMPLETE] do begin
         Forms.Application.ProcessMessages;
         Sleep(0);
       end;
       if Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
-        ((wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2).scrollTop := ScrollTop;
+        docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
+        docEl.scrollTop := ScrollTop;
+        docEl.scrollLeft := ScrollLeft;
       end;
     end;
   end;
@@ -224,7 +231,7 @@ end {TfrmHTMLPreview.RestoreScrollPos};
 { ------------------------------------------------------------------------------------------------ }
 function TfrmHTMLPreview.DetermineCustomFilter: string;
 var
-  DocFileName, ConfigDir: TFileName;
+  DocFileName, ConfigDir: nppString;
   Filters: TIniFile;
   Names: TStringList;
   i: Integer;
@@ -233,13 +240,12 @@ var
   DocLangType, LangType: Integer;
 begin
   ConfigDir := StringOfChar(#0, MAX_PATH);
-  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
-  ConfigDir := string(PChar(ConfigDir));
-  DocFileName := StringOfChar(#0, MAX_PATH);
-  SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(PChar(DocFileName)));
-  DocFileName := string(PChar(DocFileName));
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(nppPChar(ConfigDir)));
+  ConfigDir := nppString(nppPChar(ConfigDir));
 
-//ShowMessage(Format('ConfigDir: "%s"; DocFileName: "%s"', [ConfigDir, DocFileName]));
+  DocFileName := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(nppPChar(DocFileName)));
+  DocFileName := nppString(nppPChar(DocFileName));
 
   ForceDirectories(ConfigDir + '\PreviewHTML');
   Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
@@ -346,6 +352,7 @@ begin
     end;
     try
       {$MESSAGE HINT 'TODO: substitute the temp file name, execute the command with pipe, and read the output — MCO 22-01-2013'}
+      {$MESSAGE HINT 'TODO: perhaps we could wait for the result in a different thread, so as not to block Notepad++ — MCO 22-01-2013'}
 
       {$MESSAGE WARN 'TODO: REPLACE THIS TEMPORARY CODE!!! — MCO 22-01-2013'}
       Command := StringReplace(Command, '%1', '"' + InFile + '"', [rfReplaceAll]);
@@ -374,7 +381,7 @@ begin
       {--- MCO 22-01-2013: TODO: ways of transferring the result from the filter exe: read from the output stream, read the changed input file, or read a (separate) output file ---}
     finally
       if InFile <> DocFile then begin
-        TFile.Delete(InFile);
+        try TFile.Delete(InFile); except end;
       end;
     end;
   finally
