@@ -50,7 +50,7 @@ var
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI, ComObj, StrUtils, IniFiles,
+  ShellAPI, ComObj, StrUtils, IniFiles, IOUtils,
   RegExpr,
   WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
@@ -162,8 +162,12 @@ var
 begin
   ConfigDir := StringOfChar(#0, MAX_PATH);
   SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
+  ConfigDir := string(PChar(ConfigDir));
   DocFileName := StringOfChar(#0, MAX_PATH);
   SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(PChar(DocFileName)));
+  DocFileName := string(PChar(DocFileName));
+
+//ShowMessage(Format('ConfigDir: "%s"; DocFileName: "%s"', [ConfigDir, DocFileName]));
 
   ForceDirectories(ConfigDir + '\PreviewHTML');
   Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
@@ -218,20 +222,88 @@ end {TfrmHTMLPreview.DetermineCustomFilter};
 { ------------------------------------------------------------------------------------------------ }
 function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string): string;
 var
-  ConfigDir: string;
+  View: Integer;
+  hScintilla: THandle;
+  ConfigDir: TFileName;
   Filters: TIniFile;
-  i: Integer;
+  Command: string;
+  DocFile, InFile, OutFile, Ext: TFileName;
+  SS: TStringStream;
+  Start: TDateTime;
 begin
+  SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
+  if View = 0 then begin
+    hScintilla := Self.Npp.NppData.ScintillaMainHandle;
+  end else begin
+    hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
+  end;
+
   ConfigDir := StringOfChar(#0, MAX_PATH);
   SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
+  ConfigDir := string(PChar(ConfigDir));
+//ShowMessage(Format('FilterName: "%s"; ConfigDir: "%s"', [FilterName, ConfigDir]));
 
   ForceDirectories(ConfigDir + '\PreviewHTML');
   Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
   try
-    Filters.ReadString(FilterName, 'Command', '');
-    {$MESSAGE HINT 'TODO: Output the HTML to temp file, substitute the temp file name, execute the command with pipe, and read the output — MCO 22-01-2013'}
-    {--- MCO 22-01-2013: TODO: ways of transferring the HTML to the filter exe: on the input stream, write to file and pass the file name ---}
-    {--- MCO 22-01-2013: TODO: ways of transferring the result from the filter exe: read from the output stream, read the changed input file, or read a (separate) output file ---}
+    Command := Trim(Filters.ReadString(FilterName, 'Command', ''));
+    if Command = '' then
+      Exit(HTML);
+
+    DocFile := StringOfChar(#0, MAX_PATH);
+    SendMessage(Npp.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, WPARAM(Length(DocFile)), LPARAM(PChar(DocFile)));
+    DocFile := string(PChar(DocFile));
+
+    if SendMessage(hScintilla, SCI_GETMODIFY, 0, 0) <> 0 then begin
+      // The document is modified, so we’ll need to save it to a temp file, and pass that along
+      InFile := TPath.GetTempFileName;
+      Ext := ExtractFileExt(DocFile);
+      if Ext <> '' then begin
+        TFile.Move(InFile, ChangeFileExt(InFile, Ext));
+        InFile := ChangeFileExt(InFile, Ext);
+      end;
+      SS := TStringStream.Create(HTML, SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0));
+      try
+        SS.SaveToFile(InFile);
+      finally
+        SS.Free;
+      end;
+    end else begin
+      // The document is unmodified, so we can just reference the original file
+      InFile := DocFile;
+    end;
+    try
+      {$MESSAGE HINT 'TODO: substitute the temp file name, execute the command with pipe, and read the output — MCO 22-01-2013'}
+
+      {$MESSAGE WARN 'TODO: REPLACE THIS TEMPORARY CODE!!! — MCO 22-01-2013'}
+      Command := StringReplace(Command, '%1', '"' + InFile + '"', [rfReplaceAll]);
+      OutFile := TPath.GetTempFileName;
+      TFile.Delete(OutFile);
+//ShowMessage(Format('InFile: "%s"; Command: "%s", OutFile: "%s"', [InFile, Command, OutFile]));
+      ShellExecute(Npp.NppData.NppHandle, nil, 'cmd.exe', PChar('/c ' + Command + ' > "' + OutFile + '"'), PChar(ExtractFilePath(OutFile)), SW_HIDE);
+
+      Start := Now;
+      repeat
+        Sleep(500);
+      until FileExists(OutFile) or (Now - Start > 10 * (1 / 86400));
+
+      SS := TStringStream.Create('', SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0));
+      try
+        if FileExists(OutFile) then begin
+          SS.LoadFromFile(OutFile);
+          try TFile.Delete(OutFile); except end;
+        end;
+        Result := SS.DataString;
+      finally
+        SS.Free;
+      end;
+      {--- MCO 22-01-2013: TODO: ways of transferring the HTML to the filter exe: on the input stream; write to file and pass the file name ---}
+      {--- MCO 22-01-2013: TODO: ways of transferring the result from the filter exe: read from the output stream, read the changed input file, or read a (separate) output file ---}
+    finally
+      if InFile <> DocFile then begin
+        TFile.Delete(InFile);
+      end;
+    end;
   finally
     Filters.Free;
   end;
