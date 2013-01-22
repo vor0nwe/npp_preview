@@ -245,6 +245,23 @@ const
 	//Returns TRUE on success, FALSE otherwise
 	//use int, see formatType
 
+  // http://sourceforge.net/p/notepad-plus/discussion/482781/thread/c430f474
+  NPPM_GETLANGUAGENAME = (NOTEPADPLUS_USER + 83);
+   // INT NPPM_GETLANGUAGENAME(int langType, TCHAR *langName)
+   // Get programing language name from the given language type (LangType)
+   // Return value is the number of copied character / number of character to copy (\0 is not included)
+   // You should call this function 2 times - the first time you pass langName as NULL to get the number of characters to copy.
+       // You allocate a buffer of the length of (the number of characters + 1) then call NPPM_GETLANGUAGENAME function the 2nd time
+   // by passing allocated buffer as argument langName
+
+  NPPM_GETLANGUAGEDESC = (NOTEPADPLUS_USER + 84);
+   // INT NPPM_GETLANGUAGEDESC(int langType, TCHAR *langDesc)
+   // Get programing language short description from the given language type (LangType)
+   // Return value is the number of copied character / number of character to copy (\0 is not included)
+   // You should call this function 2 times - the first time you pass langDesc as NULL to get the number of characters to copy.
+       // You allocate a buffer of the length of (the number of characters + 1) then call NPPM_GETLANGUAGEDESC function the 2nd time
+   // by passing allocated buffer as argument langDesc
+
 
 
   // Notification code

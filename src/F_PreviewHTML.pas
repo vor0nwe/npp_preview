@@ -38,6 +38,8 @@ type
   private
     { Private declarations }
     function TransformXMLToHTML(const XML: WideString): string;
+    function DetermineCustomFilter: string;
+    function ExecuteCustomFilter(const FilterName, HTML: string): string;
   public
     { Public declarations }
   end;
@@ -48,7 +50,7 @@ var
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI, ComObj,
+  ShellAPI, ComObj, StrUtils, IniFiles,
   RegExpr,
   WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
@@ -84,6 +86,7 @@ var
   Content: UTF8String;
   HTML: string;
   HeadStart: Integer;
+  FilterName: string;
 begin
   SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
   if View = 0 then begin
@@ -97,8 +100,11 @@ begin
   IsHTML := (Lexer = SCLEX_HTML);
   IsXML := (Lexer = SCLEX_XML);
 
-{$MESSAGE HINT 'TODO: determine whether the current document matches a custom filter'}
-  IsCustom := False;
+  {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
+  FilterName := DetermineCustomFilter;
+  IsCustom := Length(FilterName) > 0;
+
+  {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
 
   if IsXML or IsHTML or IsCustom then begin
     Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
@@ -109,7 +115,8 @@ begin
   end;
 
   if IsCustom then begin
-{$MESSAGE HINT 'TODO: execute the custom filter, and assign the output to the HTML variable'}
+    {--- MCO 22-01-2013: execute the custom filter, and assign the output to the HTML variable ---}
+    HTML := ExecuteCustomFilter(FilterName, HTML);
     IsHTML := Length(HTML) > 0;
   end else if IsXML then begin
     HTML := TransformXMLToHTML(HTML);
@@ -141,6 +148,94 @@ begin
     self.UpdateDisplayInfo('');
   end;
 end;
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.DetermineCustomFilter: string;
+var
+  DocFileName, ConfigDir: TFileName;
+  Filters: TIniFile;
+  Names: TStringList;
+  i: Integer;
+  Match: Boolean;
+  Extension, Language, DocLanguage: string;
+  DocLangType, LangType: Integer;
+begin
+  ConfigDir := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
+  DocFileName := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(PChar(DocFileName)));
+
+  ForceDirectories(ConfigDir + '\PreviewHTML');
+  Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
+  Names := TStringList.Create;
+  try
+    Filters.ReadSections(Names);
+    for i := 0 to Names.Count - 1 do begin
+      Match := False;
+
+      {$MESSAGE HINT 'TODO: Test entire file name — MCO 22-01-2013'}
+
+      {--- MCO 22-01-2013: Test extension ---}
+      Extension := Filters.ReadString(Names[i], 'Extension', '');
+      if (Extension <> '') and SameFileName(Extension, ExtractFileExt(DocFileName)) then begin
+        Match := True;
+      end;
+
+      {--- MCO 22-01-2013: Test highlighter language ---}
+      Language := Filters.ReadString(Names[i], 'Language', '');
+      if Language <> '' then begin
+        DocLangType := -1;
+        SendMessage(Npp.NppData.NppHandle, NPPM_GETCURRENTLANGTYPE, WPARAM(0), LPARAM(@DocLangType));
+        if DocLangType > -1 then begin
+          if TryStrToInt(Language, LangType) and (LangType = DocLangType) then begin
+            Match := True;
+          end else begin
+            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(nil)));
+            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
+            if SameText(Language, DocLanguage) then begin
+              Match := True;
+            end else begin
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(nil)));
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
+              if SameText(Language, DocLanguage) then
+                Match := True;
+            end;
+          end;
+        end;
+      end;
+
+      {$MESSAGE HINT 'TODO: Test lexer — MCO 22-01-2013'}
+
+      if Match then
+        Exit(Names[i]);
+    end;
+  finally
+    Names.Free;
+    Filters.Free;
+  end;
+end {TfrmHTMLPreview.DetermineCustomFilter};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string): string;
+var
+  ConfigDir: string;
+  Filters: TIniFile;
+  i: Integer;
+begin
+  ConfigDir := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
+
+  ForceDirectories(ConfigDir + '\PreviewHTML');
+  Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
+  try
+    Filters.ReadString(FilterName, 'Command', '');
+    {$MESSAGE HINT 'TODO: Output the HTML to temp file, substitute the temp file name, execute the command with pipe, and read the output — MCO 22-01-2013'}
+    {--- MCO 22-01-2013: TODO: ways of transferring the HTML to the filter exe: on the input stream, write to file and pass the file name ---}
+    {--- MCO 22-01-2013: TODO: ways of transferring the result from the filter exe: read from the output stream, read the changed input file, or read a (separate) output file ---}
+  finally
+    Filters.Free;
+  end;
+end {TfrmHTMLPreview.ExecuteCustomFilter};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnAboutClick(Sender: TObject);
@@ -294,7 +389,7 @@ end;
 procedure TfrmHTMLPreview.wbIENewWindow3(ASender: TObject; var ppDisp: IDispatch;
   var Cancel: WordBool; dwFlags: Cardinal; const bstrUrlContext, bstrUrl: WideString);
 begin
-  if bstrUrl <> 'about:blank' then begin
+  if not SameText(bstrUrl, 'about:blank') and not StartsText('javascript:', bstrURL) then begin
     ShellExecute(Npp.NppData.NppHandle, nil, PChar(bstrUrl), nil, nil, SW_SHOWDEFAULT);
   end;
   Cancel := True;
