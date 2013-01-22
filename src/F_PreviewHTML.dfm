@@ -5,6 +5,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
   ClientWidth = 504
   ParentFont = True
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnHide = FormHide
   OnKeyPress = FormKeyPress
   OnShow = FormShow

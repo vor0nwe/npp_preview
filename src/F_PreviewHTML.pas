@@ -35,8 +35,15 @@ type
     procedure wbIEStatusBar(ASender: TObject; StatusBar: WordBool);
     procedure btnCloseStatusbarClick(Sender: TObject);
     procedure btnAboutClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     { Private declarations }
+    FBufferID: NativeInt;
+    FScrollPositions: TStringList;
+
+    procedure SaveScrollPos;
+    procedure RestoreScrollPos(const BufferID: NativeInt);
+
     function TransformXMLToHTML(const XML: WideString): string;
     function DetermineCustomFilter: string;
     function ExecuteCustomFilter(const FilterName, HTML: string): string;
@@ -52,7 +59,7 @@ implementation
 uses
   ShellAPI, ComObj, StrUtils, IniFiles, IOUtils,
   RegExpr,
-  WebBrowser, SciSupport, U_Npp_PreviewHTML;
+  WebBrowser, SciSupport, U_Npp_PreviewHTML, MSHTML;
 
 {$R *.dfm}
 
@@ -65,7 +72,16 @@ begin
   self.OnFloat := self.FormFloat;
   self.OnDock := self.FormDock;
   inherited;
+  FScrollPositions := TStringList.Create;
+  FBufferID := -1;
 end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.FormDestroy(Sender: TObject);
+begin
+  FScrollPositions.Free;
+  inherited;
+end {TfrmHTMLPreview.FormDestroy};
+
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnCloseStatusbarClick(Sender: TObject);
@@ -87,67 +103,123 @@ var
   HTML: string;
   HeadStart: Integer;
   FilterName: string;
+  docEl: IHTMLElement2;
 begin
-  SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
-  if View = 0 then begin
-    hScintilla := Self.Npp.NppData.ScintillaMainHandle;
-  end else begin
-    hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
-  end;
-  BufferID := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTBUFFERID, 0, 0);
+  try
+    SaveScrollPos;
 
-  Lexer := SendMessage(hScintilla, SCI_GETLEXER, 0, 0);
-  IsHTML := (Lexer = SCLEX_HTML);
-  IsXML := (Lexer = SCLEX_XML);
-
-  {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
-  FilterName := DetermineCustomFilter;
-  IsCustom := Length(FilterName) > 0;
-
-  {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
-
-  if IsXML or IsHTML or IsCustom then begin
-    Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
-    SetLength(Content, Size);
-    SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
-    Content := UTF8String(PAnsiChar(Content));
-    HTML := string(Content);
-  end;
-
-  if IsCustom then begin
-    {--- MCO 22-01-2013: execute the custom filter, and assign the output to the HTML variable ---}
-    HTML := ExecuteCustomFilter(FilterName, HTML);
-    IsHTML := Length(HTML) > 0;
-  end else if IsXML then begin
-    HTML := TransformXMLToHTML(HTML);
-    IsHTML := Length(HTML) > 0;
-  end;
-
-  pnlHTML.Visible := IsHTML;
-  sbrIE.Visible := IsHTML and (Length(sbrIE.SimpleText) > 0);
-  if IsHTML then begin
-    Size := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nil));
-    SetLength(Filename, Size);
-    SetLength(Filename, SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nppPChar(Filename))));
-
-    if Pos('<base ', HTML) = 0 then begin
-      HeadStart := Pos('<head>', HTML);
-      if HeadStart > 0 then
-        Inc(HeadStart, 6)
-      else
-        HeadStart := 1;
-      Insert('<base href="' + Filename + '" />', HTML, HeadStart);
+    SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
+    if View = 0 then begin
+      hScintilla := Self.Npp.NppData.ScintillaMainHandle;
+    end else begin
+      hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
     end;
-    wbIE.LoadDocFromString(HTML);
+    BufferID := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTBUFFERID, 0, 0);
 
-    if wbIE.GetDocument <> nil then
-      self.UpdateDisplayInfo(wbIE.GetDocument.title)
-    else
+    Lexer := SendMessage(hScintilla, SCI_GETLEXER, 0, 0);
+    IsHTML := (Lexer = SCLEX_HTML);
+    IsXML := (Lexer = SCLEX_XML);
+
+    {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
+    FilterName := DetermineCustomFilter;
+    IsCustom := Length(FilterName) > 0;
+
+    {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
+
+    if IsXML or IsHTML or IsCustom then begin
+      Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
+      SetLength(Content, Size);
+      SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
+      Content := UTF8String(PAnsiChar(Content));
+      HTML := string(Content);
+    end;
+
+    if IsCustom then begin
+      {--- MCO 22-01-2013: execute the custom filter, and assign the output to the HTML variable ---}
+      HTML := ExecuteCustomFilter(FilterName, HTML);
+      IsHTML := Length(HTML) > 0;
+    end else if IsXML then begin
+      HTML := TransformXMLToHTML(HTML);
+      IsHTML := Length(HTML) > 0;
+    end;
+
+    pnlHTML.Visible := IsHTML;
+    sbrIE.Visible := IsHTML and (Length(sbrIE.SimpleText) > 0);
+    if IsHTML then begin
+      Size := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nil));
+      SetLength(Filename, Size);
+      SetLength(Filename, SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nppPChar(Filename))));
+
+      if (Pos('<base ', HTML) = 0) and FileExists(Filename) then begin
+        HeadStart := Pos('<head>', HTML);
+        if HeadStart > 0 then
+          Inc(HeadStart, 6)
+        else
+          HeadStart := 1;
+        Insert('<base href="' + Filename + '" />', HTML, HeadStart);
+      end;
+      wbIE.LoadDocFromString(HTML);
+
+      if wbIE.GetDocument <> nil then
+        self.UpdateDisplayInfo(wbIE.GetDocument.title)
+      else
+        self.UpdateDisplayInfo('');
+    end else begin
       self.UpdateDisplayInfo('');
-  end else begin
-    self.UpdateDisplayInfo('');
+    end;
+
+    RestoreScrollPos(BufferID);
+  except
+    on E: Exception do begin
+      sbrIE.SimpleText := E.Message;
+      sbrIE.Visible := True;
+    end;
   end;
-end;
+end {TfrmHTMLPreview.btnRefreshClick};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.SaveScrollPos;
+var
+  Index, ScrollTop: Integer;
+begin
+  if FBufferID = -1 then
+    Exit;
+
+  if Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
+    ScrollTop := ((wbIE.Document as IHTMLDocument3).documentElement AS IHTMLElement2).scrollTop;
+  end else begin
+    ScrollTop := -1;
+  end;
+  Index := FScrollPositions.IndexOfObject(TObject(FBufferID));
+  if Index = -1 then
+    FScrollPositions.AddObject(IntToStr(ScrollTop), TObject(FBufferID))
+  else
+    FScrollPositions[Index] := IntToStr(ScrollTop);
+  {$MESSAGE HINT 'TODO: We need to watch for closing documents, so we can remove those buffer IDs from our list — MCO 22-01-2013'}
+end {TfrmHTMLPreview.SaveScrollPos};
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.RestoreScrollPos(const BufferID: NativeInt);
+var
+  Index, ScrollTop: Integer;
+begin
+  {--- MCO 22-01-2013: Look up this buffer's scroll position; if we know one, wait for the page
+                          to finish loading, then restore the scroll position. ---}
+  {$MESSAGE HINT 'TODO: This would be better if done in the browsercontrol's DocumentComplete event — MCO 22-01-2013'}
+  Index := FScrollPositions.IndexOfObject(TObject(BufferID));
+  if Index > -1 then begin
+    ScrollTop := StrToInt(FScrollPositions[Index]);
+    if ScrollTop <> -1 then begin
+      while not wbIE.ReadyState in [READYSTATE_INTERACTIVE, READYSTATE_COMPLETE] do begin
+        Forms.Application.ProcessMessages;
+        Sleep(0);
+      end;
+      if Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
+        ((wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2).scrollTop := ScrollTop;
+      end;
+    end;
+  end;
+  FBufferID := BufferID;
+end {TfrmHTMLPreview.RestoreScrollPos};
 
 { ------------------------------------------------------------------------------------------------ }
 function TfrmHTMLPreview.DetermineCustomFilter: string;
@@ -286,6 +358,7 @@ begin
       repeat
         Sleep(500);
       until FileExists(OutFile) or (Now - Start > 10 * (1 / 86400));
+      {$MESSAGE WARN 'TODO: /REPLACE THIS TEMPORARY CODE!!! — MCO 22-01-2013'}
 
       SS := TStringStream.Create('', SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0));
       try
@@ -449,10 +522,16 @@ end {TfrmHTMLPreview.TransformXMLToHTML};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.wbIEBeforeNavigate2(ASender: TObject; const pDisp: IDispatch; const URL,
   Flags, TargetFrameName, PostData, Headers: OleVariant; var Cancel: WordBool);
+var
+  Handle: HWND;
 begin
   inherited;
-  if (URL <> 'about:blank') and Assigned(Npp) then begin
-    ShellExecute(Npp.NppData.NppHandle, nil, PChar(VarToStr(URL)), nil, nil, SW_SHOWDEFAULT);
+  if not SameText(URL, 'about:blank') and not StartsText('javascript:', URL) then begin
+    if Assigned(Npp) then
+      Handle := Npp.NppData.NppHandle
+    else
+      Handle := 0;
+    ShellExecute(Handle, nil, PChar(VarToStr(URL)), nil, nil, SW_SHOWDEFAULT);
     Cancel := True;
   end;
 end;
@@ -460,9 +539,15 @@ end;
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.wbIENewWindow3(ASender: TObject; var ppDisp: IDispatch;
   var Cancel: WordBool; dwFlags: Cardinal; const bstrUrlContext, bstrUrl: WideString);
+var
+  Handle: HWND;
 begin
   if not SameText(bstrUrl, 'about:blank') and not StartsText('javascript:', bstrURL) then begin
-    ShellExecute(Npp.NppData.NppHandle, nil, PChar(bstrUrl), nil, nil, SW_SHOWDEFAULT);
+    if Assigned(Npp)  then
+      Handle := Npp.NppData.NppHandle
+    else
+      Handle := 0;
+    ShellExecute(Handle, nil, PChar(bstrUrl), nil, nil, SW_SHOWDEFAULT)
   end;
   Cancel := True;
 end;
