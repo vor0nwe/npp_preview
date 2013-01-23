@@ -1,30 +1,4 @@
 ﻿unit WebBrowser;
-(* (c) DGMR raadgevende ingenieurs bv
- *
- * Created by: MCo On: 2009-01-15 16:06:04
- *
- * $Header:   J:/PVCSPROJ/EP/archives/EPGCheck/src/WebBrowser.pas-arc   1.0   24 Feb 2012 19:18:52   MCo  $
- *
- * Description:
- *
- * Exported Classes:
- * Exported Interfaces:
- * Exported Types:
- * Exported Functions:
- * Exported Variables:
- * Exported Constants:
- *
- * $Log:   J:/PVCSPROJ/EP/archives/EPGCheck/src/WebBrowser.pas-arc  $
- * 
- *    Rev 1.0   24 Feb 2012 19:18:52   MCo
- * Initial revision.
- * 
- *    Rev 1.0   30 Jul 2009 16:57:26   MCo
- * Initial revision.
- * 
- *    Rev 1.1   10 Jul 2009 17:30:24   MCo
- * * Headers toegevoegd
- *)
 
 interface
 uses
@@ -117,22 +91,37 @@ See http://msdn.microsoft.com/en-us/library/ee330730.aspx#BROWSER_EMULATION
 *)
 
 { ------------------------------------------------------------------------------------------------ }
+function GetExecutableFile: string;
+begin
+  SetLength(Result, MAX_PATH);
+  SetLength(Result, GetModuleFileName(0, PChar(Result), Length(Result)));
+  SetLength(Result, GetLongPathName(PChar(Result), nil, 0));
+  SetLength(Result, GetLongPathName(PChar(Result), PChar(Result), Length(Result)));
+  if Copy(Result, 1, 4) = '\\?\' then
+    Result := Copy(Result, 5);
+end {GetExecutableFile};
+
+{ ------------------------------------------------------------------------------------------------ }
 function GetBrowserEmulation: Integer;
 var
   ExeName: string;
   RegKey: TRegistry;
 begin
   Result := 0;
-  ExeName := ExtractFileName(ParamStr(0));
+  ExeName := ExtractFileName(GetExecutableFile);
 
-  RegKey := TRegistry.Create;
   try
-    RegKey.RootKey := HKEY_CURRENT_USER;
-    if RegKey.OpenKey('SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION', True) then begin
-      Result := RegKey.ReadInteger(ExeName);
+    RegKey := TRegistry.Create;
+    try
+      RegKey.RootKey := HKEY_CURRENT_USER;
+      if RegKey.OpenKey('SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION', True) then begin
+        Result := RegKey.ReadInteger(ExeName);
+      end;
+    finally
+      RegKey.Free;
     end;
-  finally
-    RegKey.Free;
+  except
+    Result := 0;
   end;
 
   if Result = 0 then
@@ -144,7 +133,7 @@ var
   ExeName: string;
   RegKey: TRegistry;
 begin
-  ExeName := ExtractFileName(ParamStr(0));
+  ExeName := ExtractFileName(GetExecutableFile);
 
   RegKey := TRegistry.Create;
   try
@@ -162,18 +151,18 @@ function GetIEVersion: string;
 var
   Reg: TRegistry;
 begin
-  Reg := TRegistry.Create;
   try
-    Reg.RootKey := HKEY_LOCAL_MACHINE;
-    Reg.OpenKeyReadOnly('Software\Microsoft\Internet Explorer');
+    Reg := TRegistry.Create;
     try
+      Reg.RootKey := HKEY_LOCAL_MACHINE;
+      Reg.OpenKeyReadOnly('Software\Microsoft\Internet Explorer');
       Result := Reg.ReadString('Version');
-    except
-      Result := '';
+      Reg.CloseKey;
+    finally
+      Reg.Free;
     end;
-    Reg.CloseKey;
-  finally
-    Reg.Free;
+  except
+    Result := '';
   end;
 end {GetIEVersion};
 

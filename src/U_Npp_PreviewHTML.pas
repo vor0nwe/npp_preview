@@ -219,5 +219,9 @@ end {TNppPluginPreviewHTML.DoNppnBufferActivated};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 initialization
-  Npp := TNppPluginPreviewHTML.Create;
+  try
+    Npp := TNppPluginPreviewHTML.Create;
+  except
+    ShowException(ExceptObject, ExceptAddr);
+  end;
 end.
