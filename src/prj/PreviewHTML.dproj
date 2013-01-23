@@ -218,4 +218,12 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
+		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
+			<PreBuildEvent/>
+			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+			<PreLinkEvent/>
+			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+			<PostBuildEvent><![CDATA[]]></PostBuildEvent>
+			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
+		</PropertyGroup>
 	</Project>
