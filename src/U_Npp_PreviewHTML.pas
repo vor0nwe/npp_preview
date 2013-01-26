@@ -17,7 +17,9 @@ type
     procedure CommandShowAbout;
     procedure CommandSetIEVersion(const BrowserEmulation: Integer);
     procedure DoNppnToolbarModification; override;
+    procedure DoNppnFileClosed(const BufferID: Cardinal); override;
     procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
+    procedure DoModified(const hwnd: HWND; const modificationType: Integer); override;
   end {TNppPluginPreviewHTML};
 
 procedure _FuncReplaceHelloWorld; cdecl;
@@ -204,6 +206,9 @@ begin
   tb.ToolbarIcon := 0;
   tb.ToolbarBmp := LoadImage(Hinstance, 'TB_PREVIEW_HTML', IMAGE_BITMAP, 0, 0, (LR_DEFAULTSIZE or LR_LOADMAP3DCOLORS));
   SendMessage(self.NppData.NppHandle, NPPM_ADDTOOLBARICON, WPARAM(self.CmdIdFromDlgId(0)), LPARAM(@tb));
+
+//  SendMessage(self.NppData.ScintillaMainHandle, SCI_SETMODEVENTMASK, SC_MOD_INSERTTEXT or SC_MOD_DELETETEXT, 0);
+//  SendMessage(self.NppData.ScintillaSecondHandle, SCI_SETMODEVENTMASK, SC_MOD_INSERTTEXT or SC_MOD_DELETETEXT, 0);
 end {TNppPluginPreviewHTML.DoNppnToolbarModification};
 
 { ------------------------------------------------------------------------------------------------ }
@@ -215,6 +220,22 @@ begin
     frmHTMLPreview.btnRefresh.Click;
   end;
 end {TNppPluginPreviewHTML.DoNppnBufferActivated};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TNppPluginPreviewHTML.DoNppnFileClosed(const BufferID: Cardinal);
+begin
+  frmHTMLPreview.ForgetBuffer(BufferID);
+  inherited;
+end {TNppPluginPreviewHTML.DoNppnFileClosed};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TNppPluginPreviewHTML.DoModified(const hwnd: HWND; const modificationType: Integer);
+begin
+  if Assigned(frmHTMLPreview) and frmHTMLPreview.Visible and (modificationType and (SC_MOD_INSERTTEXT or SC_MOD_DELETETEXT) <> 0) then begin
+    frmHTMLPreview.ResetTimer;
+  end;
+end {TNppPluginPreviewHTML.DoModified};
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

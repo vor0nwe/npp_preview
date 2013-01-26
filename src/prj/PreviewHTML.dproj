@@ -40,7 +40,7 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
-			<VerInfo_MinorVer>1</VerInfo_MinorVer>
+			<VerInfo_MinorVer>2</VerInfo_MinorVer>
 			<VerInfo_Release>1</VerInfo_Release>
 			<PostBuildEventCancelOnError>false</PostBuildEventCancelOnError>
 			<PostBuildEvent><![CDATA["C:\MC\Run\Util\Compression\UPX\upx.exe" --best -q "$(OUTPUTPATH)"
@@ -48,7 +48,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<VerInfo_AutoGenVersion>true</VerInfo_AutoGenVersion>
 			<VerInfo_DLL>true</VerInfo_DLL>
 			<DCC_ImageBase>00400000</DCC_ImageBase>
-			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.1.1.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
+			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.2.0.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
 			<DCC_UsePackage>vcl;rtl;dbrtl;adortl;vcldb;vclx;bdertl;vcldbx;ibxpress;dsnap;cds;bdecds;qrpt;teeui;teedb;tee;dss;teeqr;visualclx;visualdbclx;dsnapcrba;dsnapcon;VclSmp;vclshlctrls;vclie;xmlrtl;inet;inetdbbde;inetdbxpress;inetdb;nmfast;webdsnap;websnap;soaprtl;dbexpress;dbxcds;indy;dclOffice2k;dOCI6;CoolTrayIcon_D6plus;curlpkg;ThemeManagerD6;VirtualTreesD6;Jcl;JclVcl;JvCoreD6R;JvSystemD6R;JvStdCtrlsD6R;JvAppFrmD6R;JvBandsD6R;JvDBD6R;JvDlgsD6R;JvBDED6R;JvCmpD6R;JvCryptD6R;JvCtrlsD6R;JvCustomD6R;JvDockingD6R;JvDotNetCtrlsD6R;JvEDID6R;JvGlobusD6R;JvHMID6R;JvInterpreterD6R;JvJansD6R;JvManagedThreadsD6R;JvMMD6R;JvNetD6R;JvPageCompsD6R;JvPluginD6R;JvPrintPreviewD6R;JvRuntimeDesignD6R;JvTimeFrameworkD6R;JvUIBD6R;JvValidatorsD6R;JvWizardD6R;JvXPCtrlsD6R;$(DCC_UsePackage)</DCC_UsePackage>
 			<DCC_ExeOutput>..\..\out\$(PLATFORM)\$(CONFIG)</DCC_ExeOutput>
 			<DCC_Define>NPPUNICODE;$(DCC_Define)</DCC_Define>
@@ -134,6 +134,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 						<Source Name="MainSource">PreviewHTML.dpr</Source>
 					</Source>
 					<Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\AbbreviaVCL160.bpl">Abbrevia Run-time package - VCLXE</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dcloffice2k160.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dclofficexp160.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\bcboffice2k160.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
@@ -143,7 +144,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 						<VersionInfo Name="IncludeVerInfo">False</VersionInfo>
 						<VersionInfo Name="AutoIncBuild">False</VersionInfo>
 						<VersionInfo Name="MajorVer">1</VersionInfo>
-						<VersionInfo Name="MinorVer">0</VersionInfo>
+						<VersionInfo Name="MinorVer">2</VersionInfo>
 						<VersionInfo Name="Release">0</VersionInfo>
 						<VersionInfo Name="Build">0</VersionInfo>
 						<VersionInfo Name="Debug">False</VersionInfo>
@@ -157,13 +158,13 @@ $(PostBuildEvent)]]></PostBuildEvent>
 					<VersionInfoKeys>
 						<VersionInfoKeys Name="CompanyName"/>
 						<VersionInfoKeys Name="FileDescription"/>
-						<VersionInfoKeys Name="FileVersion">1.1.1.0</VersionInfoKeys>
+						<VersionInfoKeys Name="FileVersion">1.2.0.0</VersionInfoKeys>
 						<VersionInfoKeys Name="InternalName"/>
 						<VersionInfoKeys Name="LegalCopyright"/>
 						<VersionInfoKeys Name="LegalTrademarks"/>
 						<VersionInfoKeys Name="OriginalFilename"/>
 						<VersionInfoKeys Name="ProductName"/>
-						<VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
+						<VersionInfoKeys Name="ProductVersion">6.0.0.0</VersionInfoKeys>
 						<VersionInfoKeys Name="Comments"/>
 					</VersionInfoKeys>
 				</Delphi.Personality>
@@ -182,7 +183,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='OSX32'">
@@ -190,7 +191,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
@@ -198,7 +199,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
@@ -206,7 +207,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='OSX32'">
@@ -214,15 +215,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
-			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-			<PreBuildEvent/>
-			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-			<PreLinkEvent/>
-			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent><![CDATA[]]></PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 	</Project>

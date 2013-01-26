@@ -5,6 +5,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
   ClientWidth = 504
   ParentFont = True
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnHide = FormHide
   OnKeyPress = FormKeyPress
   OnShow = FormShow
@@ -108,5 +109,11 @@ inherited frmHTMLPreview: TfrmHTMLPreview
           00000000000000000100000000000000000000000000000000000000}
       end
     end
+  end
+  object tmrAutorefresh: TTimer
+    Enabled = False
+    OnTimer = tmrAutorefreshTimer
+    Left = 448
+    Top = 16
   end
 end
