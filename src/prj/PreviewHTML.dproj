@@ -3,7 +3,7 @@
 			<ProjectGuid>{A2533A0E-8621-4A31-A675-059AFF5AA9FB}</ProjectGuid>
 			<MainSource>PreviewHTML.dpr</MainSource>
 			<Base>True</Base>
-			<Config Condition="'$(Config)'==''">Release</Config>
+			<Config Condition="'$(Config)'==''">Debug</Config>
 			<TargetedPlatforms>1</TargetedPlatforms>
 			<AppType>Library</AppType>
 			<FrameworkType>VCL</FrameworkType>
@@ -54,7 +54,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_Define>NPPUNICODE;$(DCC_Define)</DCC_Define>
 			<DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;$(DCC_Namespace)</DCC_Namespace>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-			<DCC_UnitSearchPath>$(DELPHI)\Lib\Debug;C:\PROGRA~1\Jedi\jcl\lib\d6\debug;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+			<DCC_UnitSearchPath>$(DELPHI)\Lib\Debug;C:\PROGRA~1\Jedi\jcl\lib\d6\debug;..\;..\lib;..\common;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
 			<Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
 			<DCC_N>true</DCC_N>
 			<DCC_K>false</DCC_K>
@@ -135,7 +135,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
 						<Source Name="MainSource">PreviewHTML.dpr</Source>
 					</Source>
 					<Excluded_Packages>
-						<Excluded_Packages Name="W:\LIB\BPL\AbbreviaVCL160.bpl">Abbrevia Run-time package - VCLXE</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dcloffice2k160.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dclofficexp160.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\bcboffice2k160.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
