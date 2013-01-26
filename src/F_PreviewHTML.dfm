@@ -110,4 +110,10 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       end
     end
   end
+  object tmrAutorefresh: TTimer
+    Enabled = False
+    OnTimer = tmrAutorefreshTimer
+    Left = 448
+    Top = 16
+  end
 end

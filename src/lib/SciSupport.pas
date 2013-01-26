@@ -20,26 +20,29 @@ type
   end;
   PSCNotification = ^TSCNotification;
   TSCNotification = record
-    nmhdr 		    : TNotifyHeader;
-    position    	    : Integer;		// SCN_STYLENEEDED, SCN_MODIFIED
-    ch 			    : Integer;		// SCN_CHARADDED, SCN_KEY
-    modifiers		    : Integer;		// SCN_KEY
-    modificationType	    : Integer;		// SCN_MODIFIED
-    text		    : PChar;			// SCN_MODIFIED
-    length		    : Integer;		// SCN_MODIFIED
-    linesAdded		    : Integer;		// SCN_MODIFIED
+    nmhdr 		          : TNotifyHeader;
+    position    	      : Integer;		// SCN_STYLENEEDED, SCN_MODIFIED
+    ch 			            : Integer;		// SCN_CHARADDED, SCN_KEY
+    modifiers		        : Integer;		// SCN_KEY
+    modificationType	  : Integer;		// SCN_MODIFIED
+    text		            : PChar;			// SCN_MODIFIED
+    length		          : Integer;		// SCN_MODIFIED
+    linesAdded		      : Integer;		// SCN_MODIFIED
 {$ifdef MACRO_SUPPORT}
-    message		    : Integer;		// SCN_MACRORECORD
-    wParam		    : uptr_t;		// SCN_MACRORECORD
-    lParam		    : sptr_t;			// SCN_MACRORECORD
+    message		          : Integer;		// SCN_MACRORECORD
+    wParam		          : uptr_t;		// SCN_MACRORECORD
+    lParam		          : sptr_t;			// SCN_MACRORECORD
 {$endif}
-    line		    : Integer;		// SCN_MODIFIED
-    foldLevelNow	    : Integer;		// SCN_MODIFIED
-    foldLevelPrev	    : Integer;		// SCN_MODIFIED
-    margin		    : Integer;		// SCN_MARGINCLICK
-    listType		    : Integer;		// SCN_USERLISTSELECTION
-    x                       : Integer;          // SCN_DWELLSTART, SCN_DWELLEND
-    y                       : Integer;          // SCN_DWELLSTART, SCN_DWELLEND
+    line		            : Integer;		// SCN_MODIFIED
+    foldLevelNow	      : Integer;		// SCN_MODIFIED
+    foldLevelPrev	      : Integer;		// SCN_MODIFIED
+    margin		          : Integer;		// SCN_MARGINCLICK
+    listType		        : Integer;		// SCN_USERLISTSELECTION
+    x                   : Integer;          // SCN_DWELLSTART, SCN_DWELLEND
+    y                   : Integer;          // SCN_DWELLSTART, SCN_DWELLEND
+    token               : Integer;    // SCN_MODIFIED with SC_MOD_CONTAINER
+    annotationLinesAdded: Integer; // SCN_MODIFIED with SC_MOD_CHANGEANNOTATION
+    updated             : Integer;    // SCN_UPDATEUI
   end;
   TCharacterRange = Record
     cpMin : Longint;
@@ -1245,6 +1248,11 @@ const
     SCN_HOTSPOTCLICK = 2019;
     SCN_HOTSPOTDOUBLECLICK = 2020;
     SCN_CALLTIPCLICK = 2021;
+
+    SC_UPDATE_CONTENT = 1;
+    SC_UPDATE_SELECTION = 2;
+    SC_UPDATE_V_SCROLL = 4;
+    SC_UPDATE_H_SCROLL = 8;
 //--Const
 
 implementation

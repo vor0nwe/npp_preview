@@ -5,7 +5,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Variants, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, SHDocVw, Vcl.OleCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
+  Dialogs, StdCtrls, SHDocVw, OleCtrls, ComCtrls, ExtCtrls, IniFiles,
   NppPlugin, NppDockingForms;
 
 type
@@ -18,6 +18,7 @@ type
     pnlPreview: TPanel;
     pnlHTML: TPanel;
     btnAbout: TButton;
+    tmrAutorefresh: TTimer;
     procedure btnRefreshClick(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -36,19 +37,22 @@ type
     procedure btnCloseStatusbarClick(Sender: TObject);
     procedure btnAboutClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure tmrAutorefreshTimer(Sender: TObject);
   private
     { Private declarations }
     FBufferID: NativeInt;
     FScrollPositions: TStringList;
 
+    function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
+
     procedure SaveScrollPos;
     procedure RestoreScrollPos(const BufferID: NativeInt);
 
     function TransformXMLToHTML(const XML: WideString): string;
-    function DetermineCustomFilter: string;
-    function ExecuteCustomFilter(const FilterName, HTML: string): string;
   public
     { Public declarations }
+    procedure ResetTimer;
+    procedure ForgetBuffer(const BufferID: NativeInt);
   end;
 
 var
@@ -57,7 +61,7 @@ var
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI, ComObj, StrUtils, IniFiles, IOUtils,
+  ShellAPI, ComObj, StrUtils, IOUtils,
   RegExpr,
   WebBrowser, SciSupport, U_Npp_PreviewHTML, MSHTML;
 
@@ -65,6 +69,7 @@ uses
 
 { ================================================================================================ }
 
+{ ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.FormCreate(Sender: TObject);
 begin
   self.NppDefaultDockingMask := DWS_DF_FLOATING; // whats the default docking position
@@ -74,7 +79,10 @@ begin
   inherited;
   FScrollPositions := TStringList.Create;
   FBufferID := -1;
-end;
+  with GetSettings() do begin
+    tmrAutorefresh.Interval := ReadInteger('Autorefresh', 'Interval', tmrAutorefresh.Interval);
+  end;
+end {TfrmHTMLPreview.FormCreate};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.FormDestroy(Sender: TObject);
 begin
@@ -88,6 +96,13 @@ procedure TfrmHTMLPreview.btnCloseStatusbarClick(Sender: TObject);
 begin
   sbrIE.Visible := False;
 end;
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.tmrAutorefreshTimer(Sender: TObject);
+begin
+  tmrAutorefresh.Enabled := False;
+  btnRefresh.Click;
+end {TfrmHTMLPreview.tmrAutorefreshTimer};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnRefreshClick(Sender: TObject);
@@ -120,7 +135,7 @@ begin
     IsXML := (Lexer = SCLEX_XML);
 
     {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
-    FilterName := DetermineCustomFilter;
+    FilterName := ''; // DetermineCustomFilter;
     IsCustom := Length(FilterName) > 0;
 
     {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
@@ -134,7 +149,7 @@ begin
     end;
 
     if IsCustom then begin
-      HTML := ExecuteCustomFilter(FilterName, HTML);
+      HTML := ''; // ExecuteCustomFilter(FilterName, HTML);
       IsHTML := Length(HTML) > 0;
     end else if IsXML then begin
       HTML := TransformXMLToHTML(HTML);
@@ -162,6 +177,10 @@ begin
         self.UpdateDisplayInfo(wbIE.GetDocument.title)
       else
         self.UpdateDisplayInfo('');
+
+      {--- 2013-01-26 Martijn: the WebBrowser control has a tendency to steal the focus. We'll let
+                                the editor take it back. ---}
+      SendMessage(hScintilla, SCI_GRABFOCUS, 0, 0);
     end else begin
       self.UpdateDisplayInfo('');
     end;
@@ -197,8 +216,8 @@ begin
     FScrollPositions.AddObject(IntToStr(ScrollTop) + '=' + IntToStr(ScrollLeft), TObject(FBufferID))
   else
     FScrollPositions[Index] := IntToStr(ScrollTop) + '=' + IntToStr(ScrollLeft);
-  {$MESSAGE HINT 'TODO: We need to watch for closing documents, so we can remove those buffer IDs from our list — MCO 22-01-2013'}
 end {TfrmHTMLPreview.SaveScrollPos};
+
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.RestoreScrollPos(const BufferID: NativeInt);
 var
@@ -229,177 +248,35 @@ begin
 end {TfrmHTMLPreview.RestoreScrollPos};
 
 { ------------------------------------------------------------------------------------------------ }
-function TfrmHTMLPreview.DetermineCustomFilter: string;
+procedure TfrmHTMLPreview.ForgetBuffer(const BufferID: NativeInt);
 var
-  DocFileName, ConfigDir: nppString;
-  Filters: TIniFile;
-  Names: TStringList;
-  i: Integer;
-  Match: Boolean;
-  Extension, Language, DocLanguage: string;
-  DocLangType, LangType: Integer;
+  Index: Integer;
 begin
-  ConfigDir := StringOfChar(#0, MAX_PATH);
-  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(nppPChar(ConfigDir)));
-  ConfigDir := nppString(nppPChar(ConfigDir));
-
-  DocFileName := StringOfChar(#0, MAX_PATH);
-  SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(nppPChar(DocFileName)));
-  DocFileName := nppString(nppPChar(DocFileName));
-
-  ForceDirectories(ConfigDir + '\PreviewHTML');
-  Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
-  Names := TStringList.Create;
-  try
-    Filters.ReadSections(Names);
-    for i := 0 to Names.Count - 1 do begin
-      Match := False;
-
-      {$MESSAGE HINT 'TODO: Test entire file name — MCO 22-01-2013'}
-
-      {--- MCO 22-01-2013: Test extension ---}
-      Extension := Filters.ReadString(Names[i], 'Extension', '');
-      if (Extension <> '') and SameFileName(Extension, ExtractFileExt(DocFileName)) then begin
-        Match := True;
-      end;
-
-      {--- MCO 22-01-2013: Test highlighter language ---}
-      Language := Filters.ReadString(Names[i], 'Language', '');
-      if Language <> '' then begin
-        DocLangType := -1;
-        SendMessage(Npp.NppData.NppHandle, NPPM_GETCURRENTLANGTYPE, WPARAM(0), LPARAM(@DocLangType));
-        if DocLangType > -1 then begin
-          if TryStrToInt(Language, LangType) and (LangType = DocLangType) then begin
-            Match := True;
-          end else begin
-            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(nil)));
-            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
-            if SameText(Language, DocLanguage) then begin
-              Match := True;
-            end else begin
-              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(nil)));
-              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
-              if SameText(Language, DocLanguage) then
-                Match := True;
-            end;
-          end;
-        end;
-      end;
-
-      {$MESSAGE HINT 'TODO: Test lexer — MCO 22-01-2013'}
-
-      if Match then
-        Exit(Names[i]);
-    end;
-  finally
-    Names.Free;
-    Filters.Free;
-  end;
-end {TfrmHTMLPreview.DetermineCustomFilter};
+  if FBufferID = BufferID then
+    FBufferID := -1;
+  Index := FScrollPositions.IndexOfObject(TObject(BufferID));
+  if Index > -1 then
+    FScrollPositions.Delete(Index);
+end {TfrmHTMLPreview.ForgetBuffer};
 
 { ------------------------------------------------------------------------------------------------ }
-function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string): string;
-var
-  View: Integer;
-  hScintilla: THandle;
-  ConfigDir: TFileName;
-  Filters: TIniFile;
-  Command: string;
-  DocFile, InFile, OutFile, Ext: TFileName;
-  SS: TStringStream;
-  Start: TDateTime;
+procedure TfrmHTMLPreview.ResetTimer;
 begin
-  SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
-  if View = 0 then begin
-    hScintilla := Self.Npp.NppData.ScintillaMainHandle;
-  end else begin
-    hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
-  end;
-
-  ConfigDir := StringOfChar(#0, MAX_PATH);
-  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
-  ConfigDir := string(PChar(ConfigDir));
-//ShowMessage(Format('FilterName: "%s"; ConfigDir: "%s"', [FilterName, ConfigDir]));
-
-  ForceDirectories(ConfigDir + '\PreviewHTML');
-  Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
-  try
-    Command := Trim(Filters.ReadString(FilterName, 'Command', ''));
-    if Command = '' then
-      Exit(HTML);
-
-    DocFile := StringOfChar(#0, MAX_PATH);
-    SendMessage(Npp.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, WPARAM(Length(DocFile)), LPARAM(PChar(DocFile)));
-    DocFile := string(PChar(DocFile));
-
-    if SendMessage(hScintilla, SCI_GETMODIFY, 0, 0) <> 0 then begin
-      // The document is modified, so we’ll need to save it to a temp file, and pass that along
-      InFile := TPath.GetTempFileName;
-      Ext := ExtractFileExt(DocFile);
-      if Ext <> '' then begin
-        TFile.Move(InFile, ChangeFileExt(InFile, Ext));
-        InFile := ChangeFileExt(InFile, Ext);
-      end;
-      SS := TStringStream.Create(HTML, SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0));
-      try
-        SS.SaveToFile(InFile);
-      finally
-        SS.Free;
-      end;
-    end else begin
-      // The document is unmodified, so we can just reference the original file
-      InFile := DocFile;
-    end;
-    try
-      {$MESSAGE HINT 'TODO: substitute the temp file name, execute the command with pipe, and read the output — MCO 22-01-2013'}
-      {$MESSAGE HINT 'TODO: perhaps we could wait for the result in a different thread, so as not to block Notepad++ — MCO 22-01-2013'}
-
-      {$MESSAGE WARN 'TODO: REPLACE THIS TEMPORARY CODE!!! — MCO 22-01-2013'}
-      Command := StringReplace(Command, '%1', '"' + InFile + '"', [rfReplaceAll]);
-      OutFile := TPath.GetTempFileName;
-      TFile.Delete(OutFile);
-//ShowMessage(Format('InFile: "%s"; Command: "%s", OutFile: "%s"', [InFile, Command, OutFile]));
-      ShellExecute(Npp.NppData.NppHandle, nil, 'cmd.exe', PChar('/c ' + Command + ' > "' + OutFile + '"'), PChar(ExtractFilePath(OutFile)), SW_HIDE);
-
-      Start := Now;
-      repeat
-        Sleep(500);
-      until FileExists(OutFile) or (Now - Start > 10 * (1 / 86400));
-      {$MESSAGE WARN 'TODO: /REPLACE THIS TEMPORARY CODE!!! — MCO 22-01-2013'}
-
-      SS := TStringStream.Create('', SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0));
-      try
-        if FileExists(OutFile) then begin
-          SS.LoadFromFile(OutFile);
-          try TFile.Delete(OutFile); except end;
-        end;
-        Result := SS.DataString;
-      finally
-        SS.Free;
-      end;
-      {--- MCO 22-01-2013: TODO: ways of transferring the HTML to the filter exe: on the input stream; write to file and pass the file name ---}
-      {--- MCO 22-01-2013: TODO: ways of transferring the result from the filter exe: read from the output stream, read the changed input file, or read a (separate) output file ---}
-    finally
-      if InFile <> DocFile then begin
-        try TFile.Delete(InFile); except end;
-      end;
-    end;
-  finally
-    Filters.Free;
-  end;
-end {TfrmHTMLPreview.ExecuteCustomFilter};
+  tmrAutorefresh.Enabled := False;
+  tmrAutorefresh.Enabled := True;
+end {TfrmHTMLPreview.ResetTimer};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnAboutClick(Sender: TObject);
 begin
   (npp as TNppPluginPreviewHTML).CommandShowAbout;
-end;
+end {TfrmHTMLPreview.btnAboutClick};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnCloseClick(Sender: TObject);
 begin
   self.Hide;
-end;
+end {TfrmHTMLPreview.btnCloseClick};
 
 { ------------------------------------------------------------------------------------------------ }
 // special hack for input forms
@@ -410,7 +287,6 @@ end;
 procedure TfrmHTMLPreview.FormKeyPress(Sender: TObject;
   var Key: Char);
 begin
-  inherited;
 //  if (Key = #13) and (self.Memo1.Focused) then self.Memo1.Perform(WM_CHAR, 10, 0);
 end;
 
@@ -418,7 +294,7 @@ end;
 // Docking code calls this when the form is hidden by either "x" or self.Hide
 procedure TfrmHTMLPreview.FormHide(Sender: TObject);
 begin
-  inherited;
+  SaveScrollPos;
   SendMessage(self.Npp.NppData.NppHandle, NPPM_SETMENUITEMCHECK, self.CmdID, 0);
   self.Visible := False;
 end;
@@ -441,6 +317,13 @@ begin
   inherited;
   SendMessage(self.Npp.NppData.NppHandle, NPPM_SETMENUITEMCHECK, self.CmdID, 1);
 end;
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.GetSettings(const Name: string): TIniFile;
+begin
+  ForceDirectories(Npp.ConfigDir + '\PreviewHTML');
+  Result := TIniFile.Create(Npp.ConfigDir + '\PreviewHTML\' + Name);
+end {TfrmHTMLPreview.GetSettings};
 
 { ------------------------------------------------------------------------------------------------ }
 function TfrmHTMLPreview.TransformXMLToHTML(const XML: WideString): string;

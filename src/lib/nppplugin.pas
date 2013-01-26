@@ -468,6 +468,8 @@ type
   TNppPlugin = class(TObject)
   private
     FuncArray: array of _TFuncItem;
+    FClosingBufferID: Integer;
+    FConfigDir: string;
   protected
     PluginName: nppString;
     function GetPluginsConfigDir: string;
@@ -497,12 +499,17 @@ type
     procedure DoNppnToolbarModification; virtual;
     procedure DoNppnShutdown; virtual;
     procedure DoNppnBufferActivated(const BufferID: Cardinal); virtual;
+    procedure DoNppnFileClosed(const BufferID: Cardinal); virtual;
+    procedure DoUpdateUI(const hwnd: HWND; const updated: Integer); virtual;
+    procedure DoModified(const hwnd: HWND; const modificationType: Integer); virtual;
 
     // df
     function DoOpen(filename: String): boolean; overload;
     function DoOpen(filename: String; Line: Integer): boolean; overload;
     procedure GetFileLine(var filename: String; var Line: Integer);
     function GetWord: string;
+
+    property ConfigDir: string  read GetPluginsConfigDir;
   end;
 
 
@@ -619,14 +626,13 @@ begin
 end;
 
 function TNppPlugin.GetPluginsConfigDir: string;
-var
-  s: string;
-//  r: integer;
 begin
-  SetLength(s, 1001);
-  {r := }SendMessage(self.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, 1000, LPARAM(PChar(s)));
-  SetString(s, PChar(s), StrLen(PChar(s)));
-  Result := s;
+  if Length(FConfigDir) = 0 then begin
+    SetLength(FConfigDir, 1001);
+    SendMessage(self.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, 1000, LPARAM(PChar(FConfigDir)));
+    SetString(FConfigDir, PChar(FConfigDir), StrLen(PChar(FConfigDir)));
+  end;
+  Result := FConfigDir;
 end;
 
 procedure TNppPlugin.BeNotified(sn: PSCNotification);
@@ -641,6 +647,22 @@ begin
       end;
       NPPN_BUFFERACTIVATED: begin
         self.DoNppnBufferActivated(sn.nmhdr.idFrom);
+      end;
+      NPPN_FILEBEFORECLOSE: begin
+        FClosingBufferID := SendMessage(HWND(sn.nmhdr.hwndFrom), NPPM_GETCURRENTBUFFERID, 0, 0);
+//        self.DoNppnBeforeFileClose(FClosingBufferID);
+      end;
+      NPPN_FILECLOSED: begin
+        self.DoNppnFileClosed(FClosingBufferID);
+      end;
+    end;
+  end else begin
+    case sn.nmhdr.code of
+      SCN_MODIFIED: begin
+        Self.DoModified(HWND(sn.nmhdr.hwndFrom), sn.modificationType);
+      end;
+      SCN_UPDATEUI: begin
+        self.DoUpdateUI(HWND(sn.nmhdr.hwndFrom), sn.updated);
       end;
     end;
   end;
@@ -707,7 +729,7 @@ begin
   Result := r;
 end;
 
-// overrides 
+// overrides
 procedure TNppPlugin.DoNppnShutdown;
 begin
   // override these
@@ -719,6 +741,21 @@ begin
 end;
 
 procedure TNppPlugin.DoNppnBufferActivated(const BufferID: Cardinal);
+begin
+  // override these
+end;
+
+procedure TNppPlugin.DoNppnFileClosed(const BufferID: Cardinal);
+begin
+  // override these
+end;
+
+procedure TNppPlugin.DoModified(const hwnd: HWND; const modificationType: Integer);
+begin
+  // override these
+end;
+
+procedure TNppPlugin.DoUpdateUI(const hwnd: HWND; const updated: Integer);
 begin
   // override these
 end;
