@@ -28,7 +28,8 @@ uses
   WebBrowser in '..\lib\WebBrowser.pas',
   L_VersionInfoW in '..\common\L_VersionInfoW.pas',
   L_SpecialFolders in '..\common\L_SpecialFolders.pas',
-  RegExpr in '..\common\RegExpr.pas';
+  RegExpr in '..\common\RegExpr.pas',
+  U_CustomFilter in '..\U_CustomFilter.pas';
 
 {$R *.res}
 

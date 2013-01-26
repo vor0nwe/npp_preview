@@ -6,7 +6,8 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Variants, Graphics, Controls, Forms,
   Dialogs, StdCtrls, SHDocVw, OleCtrls, ComCtrls, ExtCtrls, IniFiles,
-  NppPlugin, NppDockingForms;
+  NppPlugin, NppDockingForms,
+  U_CustomFilter;
 
 type
   TfrmHTMLPreview = class(TNppDockingForm)
@@ -42,13 +43,17 @@ type
     { Private declarations }
     FBufferID: NativeInt;
     FScrollPositions: TStringList;
-
+    FFilterThread: TCustomFilterThread;
     function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
 
     procedure SaveScrollPos;
     procedure RestoreScrollPos(const BufferID: NativeInt);
 
     function TransformXMLToHTML(const XML: WideString): string;
+    function DetermineCustomFilter: string;
+    function ExecuteCustomFilter(const FilterName, HTML: string): Boolean;
+
+    procedure FilterThreadTerminate(Sender: TObject);
   public
     { Public declarations }
     procedure ResetTimer;
@@ -61,9 +66,9 @@ var
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI, ComObj, StrUtils, IOUtils,
+  ShellAPI, ComObj, StrUtils, IniFiles, IOUtils, MSHTML,
   RegExpr,
-  WebBrowser, SciSupport, U_Npp_PreviewHTML, MSHTML;
+  WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
 {$R *.dfm}
 
@@ -135,7 +140,7 @@ begin
     IsXML := (Lexer = SCLEX_XML);
 
     {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
-    FilterName := ''; // DetermineCustomFilter;
+    FilterName := DetermineCustomFilter;
     IsCustom := Length(FilterName) > 0;
 
     {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
@@ -148,8 +153,11 @@ begin
       HTML := string(Content);
     end;
 
+    {$MESSAGE WARN 'TODO: move all the following code to a separate procedure, that can be called '+
+                    'when the filter thread has been terminated, and call it from here when no filter '+
+                    'is necessary. — Martijn, 2013-01-26'}
     if IsCustom then begin
-      HTML := ''; // ExecuteCustomFilter(FilterName, HTML);
+      HTML := ExecuteCustomFilter(FilterName, HTML);
       IsHTML := Length(HTML) > 0;
     end else if IsXML then begin
       HTML := TransformXMLToHTML(HTML);
@@ -265,6 +273,134 @@ begin
   tmrAutorefresh.Enabled := False;
   tmrAutorefresh.Enabled := True;
 end {TfrmHTMLPreview.ResetTimer};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.DetermineCustomFilter: string;
+var
+  DocFileName, ConfigDir: nppString;
+  Filters: TIniFile;
+  Names: TStringList;
+  i: Integer;
+  Match: Boolean;
+  Extension, Language, DocLanguage: string;
+  DocLangType, LangType: Integer;
+begin
+  ConfigDir := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(nppPChar(ConfigDir)));
+  ConfigDir := nppString(nppPChar(ConfigDir));
+
+  DocFileName := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(nppPChar(DocFileName)));
+  DocFileName := nppString(nppPChar(DocFileName));
+
+  ForceDirectories(ConfigDir + '\PreviewHTML');
+  Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
+  Names := TStringList.Create;
+  try
+    Filters.ReadSections(Names);
+    for i := 0 to Names.Count - 1 do begin
+      Match := False;
+
+      {$MESSAGE HINT 'TODO: Test entire file name — MCO 22-01-2013'}
+
+      {--- MCO 22-01-2013: Test extension ---}
+      Extension := Filters.ReadString(Names[i], 'Extension', '');
+      if (Extension <> '') and SameFileName(Extension, ExtractFileExt(DocFileName)) then begin
+        Match := True;
+      end;
+
+      {--- MCO 22-01-2013: Test highlighter language ---}
+      Language := Filters.ReadString(Names[i], 'Language', '');
+      if Language <> '' then begin
+        DocLangType := -1;
+        SendMessage(Npp.NppData.NppHandle, NPPM_GETCURRENTLANGTYPE, WPARAM(0), LPARAM(@DocLangType));
+        if DocLangType > -1 then begin
+          if TryStrToInt(Language, LangType) and (LangType = DocLangType) then begin
+            Match := True;
+          end else begin
+            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(nil)));
+            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
+            if SameText(Language, DocLanguage) then begin
+              Match := True;
+            end else begin
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(nil)));
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
+              if SameText(Language, DocLanguage) then
+                Match := True;
+            end;
+          end;
+        end;
+      end;
+
+      {$MESSAGE HINT 'TODO: Test lexer — MCO 22-01-2013'}
+
+      if Match then
+        Exit(Names[i]);
+    end;
+  finally
+    Names.Free;
+    Filters.Free;
+  end;
+end {TfrmHTMLPreview.DetermineCustomFilter};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string): Boolean;
+var
+  FilterData: TFilterData;
+  DocFile: TFileName;
+  View: Integer;
+  hScintilla: THandle;
+  ConfigDir: TFileName;
+  Filters: TIniFile;
+begin
+  FilterData.Name := FilterName;
+
+  DocFile := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, WPARAM(Length(DocFile)), LPARAM(PChar(DocFile)));
+  DocFile := string(PChar(DocFile));
+  FilterData.DocFile := DocFile;
+  FilterData.Contents := HTML;
+
+  SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
+  if View = 0 then begin
+    hScintilla := Self.Npp.NppData.ScintillaMainHandle;
+  end else begin
+    hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
+  end;
+  FilterData.CodePage := SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0);
+
+  ConfigDir := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
+  ConfigDir := string(PChar(ConfigDir));
+  ForceDirectories(ConfigDir + '\PreviewHTML');
+  Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
+  try
+    FilterData.FilterInfo := TStringList.Create;
+    Filters.ReadSectionValues('FilterName', FilterData.FilterInfo);
+  finally
+    Filters.Free;
+  end;
+
+  {--- 2013-01-26 Martijn: Create a new TCustomFilterThread ---}
+  FFilterThread := TCustomFilterThread.Create(FilterData);
+  FFilterThread.OnTerminate := FilterThreadTerminate;
+
+  Result := True;
+end {TfrmHTMLPreview.ExecuteCustomFilter};
+
+
+
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.FilterThreadTerminate(Sender: TObject);
+var
+  FilterThread: TCustomFilterThread;
+begin
+  FilterThread := Sender as TCustomFilterThread;
+  {--- 2013-01-16 Martijn: the filter has finished; let's put its output HTML in the browser. ---}
+
+
+end {TfrmHTMLPreview.FilterThreadTerminate};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnAboutClick(Sender: TObject);
