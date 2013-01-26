@@ -6,7 +6,8 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Variants, Graphics, Controls, Forms,
   Dialogs, StdCtrls, SHDocVw, Vcl.OleCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
-  NppPlugin, NppDockingForms;
+  NppPlugin, NppDockingForms,
+  U_CustomFilter;
 
 type
   TfrmHTMLPreview = class(TNppDockingForm)
@@ -40,13 +41,16 @@ type
     { Private declarations }
     FBufferID: NativeInt;
     FScrollPositions: TStringList;
+    FFilterThread: TCustomFilterThread;
 
     procedure SaveScrollPos;
     procedure RestoreScrollPos(const BufferID: NativeInt);
 
     function TransformXMLToHTML(const XML: WideString): string;
     function DetermineCustomFilter: string;
-    function ExecuteCustomFilter(const FilterName, HTML: string): string;
+    function ExecuteCustomFilter(const FilterName, HTML: string): Boolean;
+
+    procedure FilterThreadTerminate(Sender: TObject);
   public
     { Public declarations }
   end;
@@ -57,14 +61,15 @@ var
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI, ComObj, StrUtils, IniFiles, IOUtils,
+  ShellAPI, ComObj, StrUtils, IniFiles, IOUtils, MSHTML,
   RegExpr,
-  WebBrowser, SciSupport, U_Npp_PreviewHTML, MSHTML;
+  WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
 {$R *.dfm}
 
 { ================================================================================================ }
 
+{ ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.FormCreate(Sender: TObject);
 begin
   self.NppDefaultDockingMask := DWS_DF_FLOATING; // whats the default docking position
@@ -133,6 +138,9 @@ begin
       HTML := string(Content);
     end;
 
+    {$MESSAGE WARN 'TODO: move all the following code to a separate procedure, that can be called '+
+                    'when the filter thread has been terminated, and call it from here when no filter '+
+                    'is necessary. — Martijn, 2013-01-26'}
     if IsCustom then begin
       HTML := ExecuteCustomFilter(FilterName, HTML);
       IsHTML := Length(HTML) > 0;
@@ -298,96 +306,60 @@ begin
 end {TfrmHTMLPreview.DetermineCustomFilter};
 
 { ------------------------------------------------------------------------------------------------ }
-function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string): string;
+function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string): Boolean;
 var
+  FilterData: TFilterData;
+  DocFile: TFileName;
   View: Integer;
   hScintilla: THandle;
   ConfigDir: TFileName;
   Filters: TIniFile;
-  Command: string;
-  DocFile, InFile, OutFile, Ext: TFileName;
-  SS: TStringStream;
-  Start: TDateTime;
 begin
+  FilterData.Name := FilterName;
+
+  DocFile := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, WPARAM(Length(DocFile)), LPARAM(PChar(DocFile)));
+  DocFile := string(PChar(DocFile));
+  FilterData.DocFile := DocFile;
+  FilterData.Contents := HTML;
+
   SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
   if View = 0 then begin
     hScintilla := Self.Npp.NppData.ScintillaMainHandle;
   end else begin
     hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
   end;
+  FilterData.CodePage := SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0);
 
   ConfigDir := StringOfChar(#0, MAX_PATH);
   SendMessage(Npp.NppData.NppHandle, NPPM_GETPLUGINSCONFIGDIR, WPARAM(Length(ConfigDir)), LPARAM(PChar(ConfigDir)));
   ConfigDir := string(PChar(ConfigDir));
-//ShowMessage(Format('FilterName: "%s"; ConfigDir: "%s"', [FilterName, ConfigDir]));
-
   ForceDirectories(ConfigDir + '\PreviewHTML');
   Filters := TIniFile.Create(ConfigDir + '\PreviewHTML\Filters.ini');
   try
-    Command := Trim(Filters.ReadString(FilterName, 'Command', ''));
-    if Command = '' then
-      Exit(HTML);
-
-    DocFile := StringOfChar(#0, MAX_PATH);
-    SendMessage(Npp.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, WPARAM(Length(DocFile)), LPARAM(PChar(DocFile)));
-    DocFile := string(PChar(DocFile));
-
-    if SendMessage(hScintilla, SCI_GETMODIFY, 0, 0) <> 0 then begin
-      // The document is modified, so we’ll need to save it to a temp file, and pass that along
-      InFile := TPath.GetTempFileName;
-      Ext := ExtractFileExt(DocFile);
-      if Ext <> '' then begin
-        TFile.Move(InFile, ChangeFileExt(InFile, Ext));
-        InFile := ChangeFileExt(InFile, Ext);
-      end;
-      SS := TStringStream.Create(HTML, SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0));
-      try
-        SS.SaveToFile(InFile);
-      finally
-        SS.Free;
-      end;
-    end else begin
-      // The document is unmodified, so we can just reference the original file
-      InFile := DocFile;
-    end;
-    try
-      {$MESSAGE HINT 'TODO: substitute the temp file name, execute the command with pipe, and read the output — MCO 22-01-2013'}
-      {$MESSAGE HINT 'TODO: perhaps we could wait for the result in a different thread, so as not to block Notepad++ — MCO 22-01-2013'}
-
-      {$MESSAGE WARN 'TODO: REPLACE THIS TEMPORARY CODE!!! — MCO 22-01-2013'}
-      Command := StringReplace(Command, '%1', '"' + InFile + '"', [rfReplaceAll]);
-      OutFile := TPath.GetTempFileName;
-      TFile.Delete(OutFile);
-//ShowMessage(Format('InFile: "%s"; Command: "%s", OutFile: "%s"', [InFile, Command, OutFile]));
-      ShellExecute(Npp.NppData.NppHandle, nil, 'cmd.exe', PChar('/c ' + Command + ' > "' + OutFile + '"'), PChar(ExtractFilePath(OutFile)), SW_HIDE);
-
-      Start := Now;
-      repeat
-        Sleep(500);
-      until FileExists(OutFile) or (Now - Start > 10 * (1 / 86400));
-      {$MESSAGE WARN 'TODO: /REPLACE THIS TEMPORARY CODE!!! — MCO 22-01-2013'}
-
-      SS := TStringStream.Create('', SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0));
-      try
-        if FileExists(OutFile) then begin
-          SS.LoadFromFile(OutFile);
-          try TFile.Delete(OutFile); except end;
-        end;
-        Result := SS.DataString;
-      finally
-        SS.Free;
-      end;
-      {--- MCO 22-01-2013: TODO: ways of transferring the HTML to the filter exe: on the input stream; write to file and pass the file name ---}
-      {--- MCO 22-01-2013: TODO: ways of transferring the result from the filter exe: read from the output stream, read the changed input file, or read a (separate) output file ---}
-    finally
-      if InFile <> DocFile then begin
-        try TFile.Delete(InFile); except end;
-      end;
-    end;
+    FilterData.FilterInfo := TStringList.Create;
+    Filters.ReadSectionValues('FilterName', FilterData.FilterInfo);
   finally
     Filters.Free;
   end;
+
+  {--- 2013-01-26 Martijn: Create a new TCustomFilterThread ---}
+  FFilterThread := TCustomFilterThread.Create(FilterData);
+  FFilterThread.OnTerminate := FilterThreadTerminate;
+
+  Result := True;
 end {TfrmHTMLPreview.ExecuteCustomFilter};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.FilterThreadTerminate(Sender: TObject);
+var
+  FilterThread: TCustomFilterThread;
+begin
+  FilterThread := Sender as TCustomFilterThread;
+  {--- 2013-01-16 Martijn: the filter has finished; let's put its output HTML in the browser. ---}
+
+
+end {TfrmHTMLPreview.FilterThreadTerminate};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnAboutClick(Sender: TObject);

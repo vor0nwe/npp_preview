@@ -113,6 +113,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCCReference Include="..\common\L_VersionInfoW.pas"/>
 			<DCCReference Include="..\common\L_SpecialFolders.pas"/>
 			<DCCReference Include="..\common\RegExpr.pas"/>
+			<DCCReference Include="..\U_CustomFilter.pas"/>
 			<BuildConfiguration Include="Debug">
 				<Key>Cfg_2</Key>
 				<CfgParent>Base</CfgParent>
@@ -183,7 +184,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='OSX32'">
@@ -191,7 +192,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
@@ -199,7 +200,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win64'">
@@ -207,7 +208,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='OSX32'">
@@ -215,15 +216,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
-			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-			<PreBuildEvent/>
-			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-			<PreLinkEvent/>
-			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-			<PostBuildEvent><![CDATA[]]></PostBuildEvent>
+			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 	</Project>
