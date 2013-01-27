@@ -172,7 +172,7 @@ ODS('Command="%s"; WorkingDir="%s"; InFile="%s"; OutFile="%s"', [Command, Workin
           // read the output from the process's standard output stream
           HTML := TStringStream(Output).DataString;
           if Length(HTML) = 0 then
-            HTML := '<pre style="color: red">' + StringReplace(Error.DataString, '<', '&lt;', [rfReplaceAll]) + '</pre>';
+            HTML := '<pre style="color: darkred">' + StringReplace(Error.DataString, '<', '&lt;', [rfReplaceAll]) + '</pre>';
         end;
         cotInputFile, cotOutputFile: begin
           SS := TStringStream.Create('', FData.Encoding, False);

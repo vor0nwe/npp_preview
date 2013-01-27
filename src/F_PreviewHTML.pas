@@ -178,7 +178,7 @@ ODS('FreeAndNil(FFilterThread);');
       if ExecuteCustomFilter(FilterName, HTML, BufferID) then begin
         Exit;
       end else begin
-        HTML := 'ExecuteCustomFilter returned False';
+        HTML := '<pre style="color: darkred">ExecuteCustomFilter returned False</pre>';
       end;
     end else if IsXML then begin
       HTML := TransformXMLToHTML(HTML);
@@ -187,6 +187,7 @@ ODS('FreeAndNil(FFilterThread);');
     DisplayPreview(HTML, BufferID);
   except
     on E: Exception do begin
+ODS('btnRefreshClick ### %s: %s', [E.ClassName, StringReplace(E.Message, sLineBreak, '', [rfReplaceAll])]);
       sbrIE.SimpleText := E.Message;
       sbrIE.Visible := True;
     end;
