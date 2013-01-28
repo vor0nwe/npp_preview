@@ -3,7 +3,7 @@
 			<ProjectGuid>{A2533A0E-8621-4A31-A675-059AFF5AA9FB}</ProjectGuid>
 			<MainSource>PreviewHTML.dpr</MainSource>
 			<Base>True</Base>
-			<Config Condition="'$(Config)'==''">Release</Config>
+			<Config Condition="'$(Config)'==''">Debug</Config>
 			<TargetedPlatforms>1</TargetedPlatforms>
 			<AppType>Library</AppType>
 			<FrameworkType>VCL</FrameworkType>
@@ -85,6 +85,8 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+			<VerInfo_Debug>true</VerInfo_Debug>
+			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.2.1.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
 			<PostBuildEvent><![CDATA[]]></PostBuildEvent>
 		</PropertyGroup>
 		<ItemGroup>
@@ -134,7 +136,14 @@ $(PostBuildEvent)]]></PostBuildEvent>
 						<Source Name="MainSource">PreviewHTML.dpr</Source>
 					</Source>
 					<Excluded_Packages>
-						<Excluded_Packages Name="W:\LIB\BPL\AbbreviaVCL160.bpl">Abbrevia Run-time package - VCLXE</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\AbbreviaVCLDesign160.bpl">File W:\LIB\BPL\AbbreviaVCLDesign160.bpl not found</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\AbbreviaVCL160.bpl">File W:\LIB\BPL\AbbreviaVCL160.bpl not found</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\DL_Control_XE2.bpl">File W:\LIB\BPL\DL_Control_XE2.bpl not found</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\tmsdXE2.bpl">File W:\LIB\BPL\tmsdXE2.bpl not found</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\RaizeComponentsVcl_Design.bpl">File W:\LIB\BPL\RaizeComponentsVcl_Design.bpl not found</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\tmsdedXE2.bpl">File W:\LIB\BPL\tmsdedXE2.bpl not found</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\tmsexdXE2.bpl">File W:\LIB\BPL\tmsexdXE2.bpl not found</Excluded_Packages>
+						<Excluded_Packages Name="W:\LIB\BPL\wPDF3_XE2.bpl">File W:\LIB\BPL\wPDF3_XE2.bpl not found</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dcloffice2k160.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\dclofficexp160.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
 						<Excluded_Packages Name="$(BDSBIN)\bcboffice2k160.bpl">Embarcadero C++Builder Office 2000 Servers Package</Excluded_Packages>
@@ -216,6 +225,14 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<PreLinkEvent/>
 			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
 			<PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
+			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
+		</PropertyGroup>
+		<PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
+			<PreBuildEvent/>
+			<PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
+			<PreLinkEvent/>
+			<PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
+			<PostBuildEvent><![CDATA[]]></PostBuildEvent>
 			<PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
 		</PropertyGroup>
 	</Project>

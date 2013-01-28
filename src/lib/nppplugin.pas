@@ -637,36 +637,42 @@ end;
 
 procedure TNppPlugin.BeNotified(sn: PSCNotification);
 begin
-  if HWND(sn^.nmhdr.hwndFrom) = self.NppData.NppHandle then begin
-    case sn.nmhdr.code of
-      NPPN_TB_MODIFICATION: begin
-        self.DoNppnToolbarModification;
+  try
+    if HWND(sn^.nmhdr.hwndFrom) = self.NppData.NppHandle then begin
+      case sn.nmhdr.code of
+        NPPN_TB_MODIFICATION: begin
+          self.DoNppnToolbarModification;
+        end;
+        NPPN_SHUTDOWN: begin
+          self.DoNppnShutdown;
+        end;
+        NPPN_BUFFERACTIVATED: begin
+          self.DoNppnBufferActivated(sn.nmhdr.idFrom);
+        end;
+        NPPN_FILEBEFORECLOSE: begin
+          FClosingBufferID := SendMessage(HWND(sn.nmhdr.hwndFrom), NPPM_GETCURRENTBUFFERID, 0, 0);
+  //        self.DoNppnBeforeFileClose(FClosingBufferID);
+        end;
+        NPPN_FILECLOSED: begin
+          self.DoNppnFileClosed(FClosingBufferID);
+        end;
       end;
-      NPPN_SHUTDOWN: begin
-        self.DoNppnShutdown;
-      end;
-      NPPN_BUFFERACTIVATED: begin
-        self.DoNppnBufferActivated(sn.nmhdr.idFrom);
-      end;
-      NPPN_FILEBEFORECLOSE: begin
-        FClosingBufferID := SendMessage(HWND(sn.nmhdr.hwndFrom), NPPM_GETCURRENTBUFFERID, 0, 0);
-//        self.DoNppnBeforeFileClose(FClosingBufferID);
-      end;
-      NPPN_FILECLOSED: begin
-        self.DoNppnFileClosed(FClosingBufferID);
+    end else begin
+      case sn.nmhdr.code of
+        SCN_MODIFIED: begin
+          Self.DoModified(HWND(sn.nmhdr.hwndFrom), sn.modificationType);
+        end;
+        SCN_UPDATEUI: begin
+          self.DoUpdateUI(HWND(sn.nmhdr.hwndFrom), sn.updated);
+        end;
       end;
     end;
-  end else begin
-    case sn.nmhdr.code of
-      SCN_MODIFIED: begin
-        Self.DoModified(HWND(sn.nmhdr.hwndFrom), sn.modificationType);
-      end;
-      SCN_UPDATEUI: begin
-        self.DoUpdateUI(HWND(sn.nmhdr.hwndFrom), sn.updated);
-      end;
+    // @todo
+  except
+    on E: Exception do begin
+      OutputDebugString(PChar(Format('%s> %s: "%s"', [PluginName, E.ClassName, E.Message])));
     end;
   end;
-  // @todo
 end;
 
 procedure TNppPlugin.MessageProc(var Msg: TMessage);

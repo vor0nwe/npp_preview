@@ -224,7 +224,9 @@ end {TNppPluginPreviewHTML.DoNppnBufferActivated};
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.DoNppnFileClosed(const BufferID: Cardinal);
 begin
-  frmHTMLPreview.ForgetBuffer(BufferID);
+  if Assigned(frmHTMLPreview) then begin
+    frmHTMLPreview.ForgetBuffer(BufferID);
+  end;
   inherited;
 end {TNppPluginPreviewHTML.DoNppnFileClosed};
 
@@ -234,6 +236,7 @@ begin
   if Assigned(frmHTMLPreview) and frmHTMLPreview.Visible and (modificationType and (SC_MOD_INSERTTEXT or SC_MOD_DELETETEXT) <> 0) then begin
     frmHTMLPreview.ResetTimer;
   end;
+  inherited;
 end {TNppPluginPreviewHTML.DoModified};
 
 
