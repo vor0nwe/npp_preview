@@ -2,6 +2,10 @@ Preview HTML plugin for Notepad++
 =================================
 http://fossil.2of4.net/npp_preview
 
+v1.2.1.0, 2013-01-29
+--------------------
+- Fixed: 'Unknown exception' on close of each document in certain cases
+
 v1.2.0.0, 2013-01-26
 --------------------
 - Added: when switching documents, the scroll position of the preview is remembered, and restored 
