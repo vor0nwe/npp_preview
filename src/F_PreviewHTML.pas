@@ -93,12 +93,12 @@ end{ODS};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.FormCreate(Sender: TObject);
 begin
+  FScrollPositions := TStringList.Create;
   self.NppDefaultDockingMask := DWS_DF_FLOATING; // whats the default docking position
   //self.KeyPreview := true; // special hack for input forms
   self.OnFloat := self.FormFloat;
   self.OnDock := self.FormDock;
   inherited;
-  FScrollPositions := TStringList.Create;
   FBufferID := -1;
   with GetSettings() do begin
     tmrAutorefresh.Interval := ReadInteger('Autorefresh', 'Interval', tmrAutorefresh.Interval);
@@ -107,7 +107,7 @@ end {TfrmHTMLPreview.FormCreate};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.FormDestroy(Sender: TObject);
 begin
-  FScrollPositions.Free;
+  FreeAndNil(FScrollPositions);
   FreeAndNil(FFilterThread);
   inherited;
 end {TfrmHTMLPreview.FormDestroy};
@@ -312,9 +312,11 @@ var
 begin
   if FBufferID = BufferID then
     FBufferID := -1;
-  Index := FScrollPositions.IndexOfObject(TObject(BufferID));
-  if Index > -1 then
-    FScrollPositions.Delete(Index);
+  if Assigned(FScrollPositions) then begin
+    Index := FScrollPositions.IndexOfObject(TObject(BufferID));
+    if Index > -1 then
+      FScrollPositions.Delete(Index);
+  end;
 end {TfrmHTMLPreview.ForgetBuffer};
 
 { ------------------------------------------------------------------------------------------------ }
