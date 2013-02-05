@@ -20,6 +20,7 @@ type
     pnlHTML: TPanel;
     btnAbout: TButton;
     tmrAutorefresh: TTimer;
+    chkFreeze: TCheckBox;
     procedure btnRefreshClick(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -39,6 +40,7 @@ type
     procedure btnAboutClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure tmrAutorefreshTimer(Sender: TObject);
+    procedure chkFreezeClick(Sender: TObject);
   private
     { Private declarations }
     FBufferID: NativeInt;
@@ -139,7 +141,11 @@ var
   HTML: string;
   FilterName: string;
 begin
+  if chkFreeze.Checked then
+    Exit;
+
   try
+    tmrAutorefresh.Enabled := False;
     SaveScrollPos;
 
     if Assigned(FFilterThread) then begin
@@ -193,6 +199,14 @@ ODS('btnRefreshClick ### %s: %s', [E.ClassName, StringReplace(E.Message, sLineBr
     end;
   end;
 end {TfrmHTMLPreview.btnRefreshClick};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.chkFreezeClick(Sender: TObject);
+begin
+  btnRefresh.Enabled := not chkFreeze.Checked;
+  if btnRefresh.Enabled then
+    btnRefresh.Click;
+end {TfrmHTMLPreview.chkFreezeClick};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.DisplayPreview(HTML: string; const BufferID: NativeInt);

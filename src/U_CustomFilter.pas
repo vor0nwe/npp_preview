@@ -70,7 +70,7 @@ var
   InputMethod: TContentInputType;
   OutputMethod: TContentOutputType;
   Input, Output, Error: TStringStream;
-  i: Integer;
+//  i: Integer;
 begin
 //ODS('Data.FilterInfo.Count = "%d"', [FData.FilterInfo.Count]);
 //for i := 0 to FData.FilterInfo.Count - 1 do begin
