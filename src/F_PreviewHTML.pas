@@ -146,12 +146,11 @@ begin
 
   try
     tmrAutorefresh.Enabled := False;
-    SaveScrollPos;
-
     if Assigned(FFilterThread) then begin
 ODS('FreeAndNil(FFilterThread);');
       FreeAndNil(FFilterThread);
     end;
+    SaveScrollPos;
 
     SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
     if View = 0 then begin
@@ -165,32 +164,39 @@ ODS('FreeAndNil(FFilterThread);');
     IsHTML := (Lexer = SCLEX_HTML);
     IsXML := (Lexer = SCLEX_XML);
 
-    {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
-    FilterName := DetermineCustomFilter;
-    IsCustom := Length(FilterName) > 0;
+    Screen.Cursor := crHourGlass;
+    try
+      {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
+      FilterName := DetermineCustomFilter;
+      IsCustom := Length(FilterName) > 0;
 
-    {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
+      {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
 
-    if IsXML or IsHTML or IsCustom then begin
-      Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
-      SetLength(Content, Size);
-      SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
-      Content := UTF8String(PAnsiChar(Content));
-      HTML := string(Content);
-    end;
-
-    if IsCustom then begin
-//MessageBox(Npp.NppData.NppHandle, PChar(Format('FilterName: %s', [FilterName])), 'PreviewHTML', MB_ICONINFORMATION);
-      if ExecuteCustomFilter(FilterName, HTML, BufferID) then begin
-        Exit;
-      end else begin
-        HTML := '<pre style="color: darkred">ExecuteCustomFilter returned False</pre>';
+      if IsXML or IsHTML or IsCustom then begin
+        Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
+        SetLength(Content, Size);
+        SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
+        Content := UTF8String(PAnsiChar(Content));
+        HTML := string(Content);
       end;
-    end else if IsXML then begin
-      HTML := TransformXMLToHTML(HTML);
-    end;
 
-    DisplayPreview(HTML, BufferID);
+      if IsCustom then begin
+//MessageBox(Npp.NppData.NppHandle, PChar(Format('FilterName: %s', [FilterName])), 'PreviewHTML', MB_ICONINFORMATION);
+        wbIEStatusTextChange(wbIE, Format('Running filter %s...', [FilterName]));
+        if ExecuteCustomFilter(FilterName, HTML, BufferID) then begin
+          Exit;
+        end else begin
+          wbIEStatusTextChange(wbIE, Format('Failed filter %s...', [FilterName]));
+          HTML := '<pre style="color: darkred">ExecuteCustomFilter returned False</pre>';
+        end;
+      end else if IsXML then begin
+        HTML := TransformXMLToHTML(HTML);
+      end;
+
+      DisplayPreview(HTML, BufferID);
+    finally
+      Screen.Cursor := crDefault;
+    end;
   except
     on E: Exception do begin
 ODS('btnRefreshClick ### %s: %s', [E.ClassName, StringReplace(E.Message, sLineBreak, '', [rfReplaceAll])]);
@@ -254,6 +260,13 @@ ODS('DisplayPreview(HTML: "%s"(%d); BufferID: %x)', [StringReplace(Copy(HTML, 1,
       SendMessage(hScintilla, SCI_GRABFOCUS, 0, 0);
     end else begin
       self.UpdateDisplayInfo('');
+    end;
+
+    if pnlHTML.Visible then begin
+      Self.AlphaBlend := False;
+    end else begin
+      Self.AlphaBlend := True;
+      Self.AlphaBlendValue := 127;
     end;
 
     RestoreScrollPos(BufferID);
@@ -348,12 +361,16 @@ var
   Names: TStringList;
   i: Integer;
   Match: Boolean;
-  Extension, Language, DocLanguage: string;
+  Ext, Language, DocLanguage: string;
   DocLangType, LangType: Integer;
+  Extensions: TStringList;
 begin
   DocFileName := StringOfChar(#0, MAX_PATH);
   SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(nppPChar(DocFileName)));
   DocFileName := nppString(nppPChar(DocFileName));
+
+  DocLangType := -1;
+  DocLanguage := '';
 
   ForceDirectories(Npp.ConfigDir + '\PreviewHTML');
   Filters := TIniFile.Create(Npp.ConfigDir + '\PreviewHTML\Filters.ini');
@@ -361,34 +378,45 @@ begin
   try
     Filters.ReadSections(Names);
     for i := 0 to Names.Count - 1 do begin
+      {--- 2013-02-15 Martijn: empty filters should be skipped, and
+                      any filter can be disabled by putting a '-' in front of its name. ---}
+      if (Length(Names[i]) = 0) or (Names[i][1] = '-') then
+        Continue;
+
       Match := False;
 
       {$MESSAGE HINT 'TODO: Test entire file name — MCO 22-01-2013'}
 
       {--- MCO 22-01-2013: Test extension ---}
-      Extension := Filters.ReadString(Names[i], 'Extension', '');
-      if (Extension <> '') and SameFileName(Extension, ExtractFileExt(DocFileName)) then begin
-        Match := True;
+      Ext := Trim(Filters.ReadString(Names[i], 'Extension', ''));
+      if (Ext <> '') then begin
+        Extensions := TStringList.Create;
+        try
+          Extensions.CaseSensitive := False;
+          Extensions.Delimiter := ',';
+          Extensions.DelimitedText := Ext;
+          Match := Extensions.IndexOf(ExtractFileExt(DocFileName)) > -1;
+        finally
+          Extensions.Free;
+        end;
       end;
 
       {--- MCO 22-01-2013: Test highlighter language ---}
       Language := Filters.ReadString(Names[i], 'Language', '');
       if Language <> '' then begin
-        DocLangType := -1;
-        SendMessage(Npp.NppData.NppHandle, NPPM_GETCURRENTLANGTYPE, WPARAM(0), LPARAM(@DocLangType));
+        if DocLangType = -1 then begin
+          SendMessage(Npp.NppData.NppHandle, NPPM_GETCURRENTLANGTYPE, WPARAM(0), LPARAM(@DocLangType));
+        end;
         if DocLangType > -1 then begin
           if TryStrToInt(Language, LangType) and (LangType = DocLangType) then begin
             Match := True;
           end else begin
-            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(nil)));
-            SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
+            if DocLanguage = '' then begin
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(DocLangType), LPARAM(nil)));
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(DocLangType), LPARAM(PChar(DocLanguage))));
+            end;
             if SameText(Language, DocLanguage) then begin
               Match := True;
-            end else begin
-              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(nil)));
-              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGEDESC, WPARAM(LangType), LPARAM(PChar(DocLanguage))));
-              if SameText(Language, DocLanguage) then
-                Match := True;
             end;
           end;
         end;
@@ -454,6 +482,7 @@ begin
   {--- 2013-01-26 Martijn: Create a new TCustomFilterThread ---}
   FFilterThread := TCustomFilterThread.Create(FilterData);
   Result := Assigned(FFilterThread);
+  FFilterThread.WaitFor;
 end {TfrmHTMLPreview.ExecuteCustomFilter};
 
 { ------------------------------------------------------------------------------------------------ }
@@ -653,7 +682,9 @@ end;
 procedure TfrmHTMLPreview.wbIEStatusTextChange(ASender: TObject; const Text: WideString);
 begin
   sbrIE.SimpleText := Text;
-  sbrIE.Visible := Length(Text) > 0;
+//  sbrIE.Visible := Length(Text) > 0;
+//  if sbrIE.Visible then
+  sbrIE.Refresh;
 end;
 
 { ------------------------------------------------------------------------------------------------ }

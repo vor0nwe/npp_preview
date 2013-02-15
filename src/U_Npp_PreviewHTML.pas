@@ -13,9 +13,11 @@ type
   public
     constructor Create;
     procedure CommandShowPreview;
-    procedure CommandReplaceHelloWorld;
-    procedure CommandShowAbout;
     procedure CommandSetIEVersion(const BrowserEmulation: Integer);
+    procedure CommandOpenFile(const Filename: nppString);
+    procedure CommandShowAbout;
+    procedure CommandReplaceHelloWorld;
+
     procedure DoNppnToolbarModification; override;
     procedure DoNppnFileClosed(const BufferID: Cardinal); override;
     procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
@@ -24,6 +26,8 @@ type
 
 procedure _FuncReplaceHelloWorld; cdecl;
 procedure _FuncShowPreview; cdecl;
+procedure _FuncOpenSettings; cdecl;
+procedure _FuncOpenFilters; cdecl;
 procedure _FuncShowAbout; cdecl;
 
 procedure _FuncSetIE7; cdecl;
@@ -87,6 +91,11 @@ begin
 
   self.AddFuncSeparator;
 
+  self.AddFuncItem('Edit &settings', _FuncOpenSettings);
+  self.AddFuncItem('Edit &filter definitions', _FuncOpenFilters);
+
+  self.AddFuncSeparator;
+
   self.AddFuncItem('&About', _FuncShowAbout);
 end {TNppPluginPreviewHTML.Create};
 
@@ -95,8 +104,18 @@ procedure _FuncReplaceHelloWorld; cdecl;
 begin
   Npp.CommandReplaceHelloWorld;
 end;
-procedure _FuncShowAbout; cdecl;
 { ------------------------------------------------------------------------------------------------ }
+procedure _FuncOpenSettings; cdecl;
+begin
+  Npp.CommandOpenFile('Settings.ini');
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncOpenFilters; cdecl;
+begin
+  Npp.CommandOpenFile('Filters.ini');
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncShowAbout; cdecl;
 begin
   Npp.CommandShowAbout;
 end;
@@ -141,6 +160,22 @@ begin
   Npp.CommandSetIEVersion(13000);
 end;
 
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TNppPluginPreviewHTML.CommandOpenFile(const Filename: nppString);
+var
+  FullPath: nppString;
+begin
+  try
+    FullPath := Npp.ConfigDir + '\PreviewHTML\' + Filename;
+    if not FileExists(FullPath) and FileExists(ChangeFileExt(FullPath, '.sample' + ExtractFileExt(FullPath))) then
+      FullPath := ChangeFileExt(FullPath, '.sample' + ExtractFileExt(FullPath));
+    if not DoOpen(FullPath) then
+      MessageBox(Npp.NppData.NppHandle, PChar(Format('Unable to open "%s".', [FullPath])), PChar(Caption), MB_ICONWARNING);
+  except
+    ShowException(ExceptObject, ExceptAddr);
+  end;
+end {TNppPluginPreviewHTML.CommandOpenFilters};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandReplaceHelloWorld;
