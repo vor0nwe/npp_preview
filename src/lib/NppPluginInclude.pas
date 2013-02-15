@@ -8,8 +8,12 @@ begin
   end;
   DLL_PROCESS_DETACH:
   begin
-    if Assigned(Npp) then
-      Npp.Destroy;
+    try
+      if Assigned(Npp) then
+        Npp.Free;
+    except
+      ShowException(ExceptObject, ExceptAddr);
+    end;
   end;
   //DLL_THREAD_ATTACH: MessageBeep(0);
   //DLL_THREAD_DETACH: MessageBeep(0);
