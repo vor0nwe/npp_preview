@@ -2,9 +2,15 @@ Preview HTML plugin for Notepad++
 =================================
 http://fossil.2of4.net/npp_preview
 
+v1.3.0.0, 2013-03-03
+--------------------
+- Added: ability to define output filters, that can convert source code to HTML before previewing.
+- Added: menu options to edit the settings and filter definitions.
+- Added: 'freeze' checkbox, which suspends refreshing the preview window.
+
 v1.2.1.0, 2013-01-29
 --------------------
-- Fixed: 'Unknown exception' on close of each document in certain cases
+- Fixed: 'Unknown exception' on close of each document in certain cases.
 
 v1.2.0.0, 2013-01-26
 --------------------
@@ -12,12 +18,12 @@ v1.2.0.0, 2013-01-26
          whenever you switch back to that document. [cfc74baf4b]
 - Added: when changing the document, the preview is automatically refreshed. [20d1203257]
          By default, the plugin waits for 1000 ms (= 1 second), but this can be adjusted by 
-		 creating a settings file "$(PLUGINSCONFIG)\PreviewHTML\Settings.ini", and adding the 
-		 following lines to it, replacing 1000 by the number of milliseconds you want it to wait.
-		 If you want to disable the autorefresh, specify an interval of 0 ms.
-		 
-		 [Autorefresh]
-		 Interval=1000
+         creating a settings file "$(PLUGINSCONFIG)\PreviewHTML\Settings.ini", and adding the 
+         following lines to it, replacing 1000 by the number of milliseconds you want it to wait.
+         If you want to disable the autorefresh, specify an interval of 0 ms.
+         
+         [Autorefresh]
+         Interval=1000
 
 v1.1.1.0, 2013-01-24
 --------------------
