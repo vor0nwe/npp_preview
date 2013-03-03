@@ -6,7 +6,8 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Variants, Graphics, Controls, Forms,
   Dialogs, StdCtrls, SHDocVw, OleCtrls, ComCtrls, ExtCtrls, IniFiles,
-  NppPlugin, NppDockingForms;
+  NppPlugin, NppDockingForms,
+  U_CustomFilter;
 
 type
   TfrmHTMLPreview = class(TNppDockingForm)
@@ -19,6 +20,7 @@ type
     pnlHTML: TPanel;
     btnAbout: TButton;
     tmrAutorefresh: TTimer;
+    chkFreeze: TCheckBox;
     procedure btnRefreshClick(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -38,34 +40,59 @@ type
     procedure btnAboutClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure tmrAutorefreshTimer(Sender: TObject);
+    procedure chkFreezeClick(Sender: TObject);
+    procedure wbIEDocumentComplete(ASender: TObject; const pDisp: IDispatch; const URL: OleVariant);
   private
     { Private declarations }
     FBufferID: NativeInt;
     FScrollPositions: TStringList;
+    FFilterThread: TCustomFilterThread;
+    FScrollTop: Integer;
+    FScrollLeft: Integer;
 
     function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
 
     procedure SaveScrollPos;
     procedure RestoreScrollPos(const BufferID: NativeInt);
 
-    function TransformXMLToHTML(const XML: WideString): string;
+    function  DetermineCustomFilter: string;
+    function  ExecuteCustomFilter(const FilterName, HTML: string; const BufferID: NativeInt): Boolean;
+    function  TransformXMLToHTML(const XML: WideString): string;
+
+    procedure FilterThreadTerminate(Sender: TObject);
   public
     { Public declarations }
     procedure ResetTimer;
     procedure ForgetBuffer(const BufferID: NativeInt);
+    procedure DisplayPreview(HTML: string; const BufferID: NativeInt);
   end;
 
 var
   frmHTMLPreview: TfrmHTMLPreview;
 
+procedure ODS(const DebugOutput: string); overload;
+procedure ODS(const DebugOutput: string; const Args: array of const); overload;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI, ComObj, StrUtils, IOUtils,
+  ShellAPI, ComObj, StrUtils, IOUtils, Masks, MSHTML,
   RegExpr,
-  WebBrowser, SciSupport, U_Npp_PreviewHTML, MSHTML;
+  WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
 {$R *.dfm}
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure ODS(const DebugOutput: string); overload;
+begin
+  OutputDebugString(PChar('PreviewHTML['+IntToHex(GetCurrentThreadId, 4)+']: ' + DebugOutput));
+end {ODS};
+{ ------------------------------------------------------------------------------------------------ }
+procedure ODS(const DebugOutput: string; const Args: array of const); overload;
+begin
+  ODS(Format(DebugOutput, Args));
+end{ODS};
+
 
 { ================================================================================================ }
 
@@ -87,6 +114,7 @@ end {TfrmHTMLPreview.FormCreate};
 procedure TfrmHTMLPreview.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(FScrollPositions);
+  FreeAndNil(FFilterThread);
   inherited;
 end {TfrmHTMLPreview.FormDestroy};
 
@@ -113,13 +141,19 @@ var
   Lexer: NativeInt;
   IsHTML, IsXML, IsCustom: Boolean;
   Size: WPARAM;
-  Filename: nppString;
   Content: UTF8String;
   HTML: string;
-  HeadStart: Integer;
   FilterName: string;
 begin
+  if chkFreeze.Checked then
+    Exit;
+
   try
+    tmrAutorefresh.Enabled := False;
+    if Assigned(FFilterThread) then begin
+ODS('FreeAndNil(FFilterThread);');
+      FreeAndNil(FFilterThread);
+    end;
     SaveScrollPos;
 
     SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
@@ -134,35 +168,75 @@ begin
     IsHTML := (Lexer = SCLEX_HTML);
     IsXML := (Lexer = SCLEX_XML);
 
-    {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
-    FilterName := ''; // DetermineCustomFilter;
-    IsCustom := Length(FilterName) > 0;
+    Screen.Cursor := crHourGlass;
+    try
+      {--- MCO 22-01-2013: determine whether the current document matches a custom filter ---}
+      FilterName := DetermineCustomFilter;
+      IsCustom := Length(FilterName) > 0;
 
-    {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
+      {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
 
-    if IsXML or IsHTML or IsCustom then begin
-      Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
-      SetLength(Content, Size);
-      SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
-      Content := UTF8String(PAnsiChar(Content));
-      HTML := string(Content);
+      if IsXML or IsHTML or IsCustom then begin
+        Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
+        SetLength(Content, Size);
+        SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
+        Content := UTF8String(PAnsiChar(Content));
+        HTML := string(Content);
+      end;
+
+      if IsCustom then begin
+//MessageBox(Npp.NppData.NppHandle, PChar(Format('FilterName: %s', [FilterName])), 'PreviewHTML', MB_ICONINFORMATION);
+        wbIEStatusTextChange(wbIE, Format('Running filter %s...', [FilterName]));
+        if ExecuteCustomFilter(FilterName, HTML, BufferID) then begin
+          Exit;
+        end else begin
+          wbIEStatusTextChange(wbIE, Format('Failed filter %s...', [FilterName]));
+          HTML := '<pre style="color: darkred">ExecuteCustomFilter returned False</pre>';
+        end;
+      end else if IsXML then begin
+        HTML := TransformXMLToHTML(HTML);
+      end;
+
+      DisplayPreview(HTML, BufferID);
+    finally
+      Screen.Cursor := crDefault;
     end;
-
-    if IsCustom then begin
-      HTML := ''; // ExecuteCustomFilter(FilterName, HTML);
-      IsHTML := Length(HTML) > 0;
-    end else if IsXML then begin
-      HTML := TransformXMLToHTML(HTML);
-      IsHTML := Length(HTML) > 0;
+  except
+    on E: Exception do begin
+ODS('btnRefreshClick ### %s: %s', [E.ClassName, StringReplace(E.Message, sLineBreak, '', [rfReplaceAll])]);
+      sbrIE.SimpleText := E.Message;
+      sbrIE.Visible := True;
     end;
+  end;
+end {TfrmHTMLPreview.btnRefreshClick};
 
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.chkFreezeClick(Sender: TObject);
+begin
+  btnRefresh.Enabled := not chkFreeze.Checked;
+  if btnRefresh.Enabled then
+    btnRefresh.Click;
+end {TfrmHTMLPreview.chkFreezeClick};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.DisplayPreview(HTML: string; const BufferID: NativeInt);
+var
+  IsHTML: Boolean;
+  HeadStart: Integer;
+  Size: WPARAM;
+  Filename: nppString;
+  View: Integer;
+  hScintilla: THandle;
+begin
+ODS('DisplayPreview(HTML: "%s"(%d); BufferID: %x)', [StringReplace(Copy(HTML, 1, 10), #13#10, '', [rfReplaceAll]), Length(HTML), BufferID]);
+  try
+    IsHTML := Length(HTML) > 0;
     pnlHTML.Visible := IsHTML;
     sbrIE.Visible := IsHTML and (Length(sbrIE.SimpleText) > 0);
     if IsHTML then begin
       Size := SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nil));
       SetLength(Filename, Size);
       SetLength(Filename, SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETFULLPATHFROMBUFFERID, BufferID, LPARAM(nppPChar(Filename))));
-
       if (Pos('<base ', HTML) = 0) and FileExists(Filename) then begin
         HeadStart := Pos('<head>', HTML);
         if HeadStart > 0 then
@@ -171,6 +245,7 @@ begin
           HeadStart := 1;
         Insert('<base href="' + Filename + '" />', HTML, HeadStart);
       end;
+
       wbIE.LoadDocFromString(HTML);
 
       if wbIE.GetDocument <> nil then
@@ -179,20 +254,34 @@ begin
         self.UpdateDisplayInfo('');
 
       {--- 2013-01-26 Martijn: the WebBrowser control has a tendency to steal the focus. We'll let
-                                the editor take it back. ---}
+                                  the editor take it back. ---}
+      SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
+      if View = 0 then begin
+        hScintilla := Self.Npp.NppData.ScintillaMainHandle;
+      end else begin
+        hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
+      end;
       SendMessage(hScintilla, SCI_GRABFOCUS, 0, 0);
     end else begin
       self.UpdateDisplayInfo('');
     end;
 
+    if pnlHTML.Visible then begin
+      Self.AlphaBlend := False;
+    end else begin
+      Self.AlphaBlend := True;
+      Self.AlphaBlendValue := 127;
+    end;
+
     RestoreScrollPos(BufferID);
   except
     on E: Exception do begin
+ODS('DisplayPreview ### %s: %s', [E.ClassName, StringReplace(E.Message, sLineBreak, '', [rfReplaceAll])]);
       sbrIE.SimpleText := E.Message;
       sbrIE.Visible := True;
     end;
   end;
-end {TfrmHTMLPreview.btnRefreshClick};
+end {TfrmHTMLPreview.DisplayPreview};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.SaveScrollPos;
@@ -200,6 +289,8 @@ var
   Index, ScrollTop, ScrollLeft: Integer;
   docEl: IHTMLElement2;
 begin
+  FScrollTop := -1;
+  FScrollLeft := -1;
   if FBufferID = -1 then
     Exit;
 
@@ -221,27 +312,19 @@ end {TfrmHTMLPreview.SaveScrollPos};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.RestoreScrollPos(const BufferID: NativeInt);
 var
-  Index, ScrollTop, ScrollLeft: Integer;
+  Index: Integer;
   docEl: IHTMLElement2;
 begin
   {--- MCO 22-01-2013: Look up this buffer's scroll position; if we know one, wait for the page
                           to finish loading, then restore the scroll position. ---}
   Index := FScrollPositions.IndexOfObject(TObject(BufferID));
   if Index > -1 then begin
-    ScrollTop := StrToInt(FScrollPositions.Names[Index]);
-    ScrollLeft := StrToInt(FScrollPositions.ValueFromIndex[Index]);
-    if ScrollTop <> -1 then begin
-      {$MESSAGE HINT 'TODO: This would be better if done in the browsercontrol's DocumentComplete event,
-                            so as to prevent blocking Notepad++ — MCO 22-01-2013'}
-      while not wbIE.ReadyState in [READYSTATE_INTERACTIVE, READYSTATE_COMPLETE] do begin
-        Forms.Application.ProcessMessages;
-        Sleep(0);
-      end;
-      if Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
-        docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
-        docEl.scrollTop := ScrollTop;
-        docEl.scrollLeft := ScrollLeft;
-      end;
+    FScrollTop := StrToInt(FScrollPositions.Names[Index]);
+    FScrollLeft := StrToInt(FScrollPositions.ValueFromIndex[Index]);
+    if (FScrollTop <> -1) and Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
+      docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
+      docEl.scrollTop := FScrollTop;
+      docEl.scrollLeft := FScrollLeft;
     end;
   end;
   FBufferID := BufferID;
@@ -267,6 +350,155 @@ begin
   tmrAutorefresh.Enabled := False;
   tmrAutorefresh.Enabled := True;
 end {TfrmHTMLPreview.ResetTimer};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.DetermineCustomFilter: string;
+var
+  DocFileName: nppString;
+  Filters: TIniFile;
+  Names: TStringList;
+  i: Integer;
+  Match: Boolean;
+  Ext, Language, DocLanguage: string;
+  DocLangType, LangType: Integer;
+  Extensions: TStringList;
+  Filespec: string;
+begin
+  DocFileName := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(nppPChar(DocFileName)));
+  DocFileName := nppString(nppPChar(DocFileName));
+
+  DocLangType := -1;
+  DocLanguage := '';
+
+  ForceDirectories(Npp.ConfigDir + '\PreviewHTML');
+  Filters := TIniFile.Create(Npp.ConfigDir + '\PreviewHTML\Filters.ini');
+  Names := TStringList.Create;
+  try
+    Filters.ReadSections(Names);
+    for i := 0 to Names.Count - 1 do begin
+      {--- 2013-02-15 Martijn: empty filters should be skipped, and
+                      any filter can be disabled by putting a '-' in front of its name. ---}
+      if (Length(Names[i]) = 0) or (Names[i][1] = '-') then
+        Continue;
+
+      Match := False;
+
+      {--- Martijn 03-03-2013: Test file name ---}
+      Filespec := Trim(Filters.ReadString(Names[i], 'Filename', ''));
+      if (Filespec <> '') then begin
+        // http://docwiki.embarcadero.com/Libraries/XE2/en/System.Masks.MatchesMask#Description
+        Match := Match or MatchesMask(ExtractFileName(DocFileName), Filespec);
+      end;
+
+      {--- MCO 22-01-2013: Test extension ---}
+      Ext := Trim(Filters.ReadString(Names[i], 'Extension', ''));
+      if (Ext <> '') then begin
+        Extensions := TStringList.Create;
+        try
+          Extensions.CaseSensitive := False;
+          Extensions.Delimiter := ',';
+          Extensions.DelimitedText := Ext;
+          Match := Match or (Extensions.IndexOf(ExtractFileExt(DocFileName)) > -1);
+        finally
+          Extensions.Free;
+        end;
+      end;
+
+      {--- MCO 22-01-2013: Test highlighter language ---}
+      Language := Filters.ReadString(Names[i], 'Language', '');
+      if Language <> '' then begin
+        if DocLangType = -1 then begin
+          SendMessage(Npp.NppData.NppHandle, NPPM_GETCURRENTLANGTYPE, WPARAM(0), LPARAM(@DocLangType));
+        end;
+        if DocLangType > -1 then begin
+          if TryStrToInt(Language, LangType) and (LangType = DocLangType) then begin
+            Match := True;
+          end else begin
+            if DocLanguage = '' then begin
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(DocLangType), LPARAM(nil)));
+              SetLength(DocLanguage, SendMessage(Npp.NppData.NppHandle, NPPM_GETLANGUAGENAME, WPARAM(DocLangType), LPARAM(PChar(DocLanguage))));
+            end;
+            if SameText(Language, DocLanguage) then begin
+              Match := True;
+            end;
+          end;
+        end;
+      end;
+
+      {$MESSAGE HINT 'TODO: Test lexer — MCO 22-01-2013'}
+
+      if Match then
+        Exit(Names[i]);
+    end;
+  finally
+    Names.Free;
+    Filters.Free;
+  end;
+end {TfrmHTMLPreview.DetermineCustomFilter};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string; const BufferID: NativeInt): Boolean;
+var
+  FilterData: TFilterData;
+  DocFile: TFileName;
+  View: Integer;
+  hScintilla: THandle;
+  Filters: TIniFile;
+  BufferEncoding: NativeInt;
+begin
+  FilterData.Name := FilterName;
+  FilterData.BufferID := BufferID;
+
+  DocFile := StringOfChar(#0, MAX_PATH);
+  SendMessage(Npp.NppData.NppHandle, NPPM_GETFULLCURRENTPATH, WPARAM(Length(DocFile)), LPARAM(PChar(DocFile)));
+  DocFile := string(PChar(DocFile));
+  FilterData.DocFile := DocFile;
+  FilterData.Contents := HTML;
+
+  SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
+  if View = 0 then begin
+    hScintilla := Self.Npp.NppData.ScintillaMainHandle;
+  end else begin
+    hScintilla := Self.Npp.NppData.ScintillaSecondHandle;
+  end;
+  BufferEncoding := SendMessage(Npp.NppData.NppHandle, NPPM_GETBUFFERENCODING, BufferID, 0);
+  case BufferEncoding of
+    1, 4: FilterData.Encoding := TEncoding.UTF8;
+    2, 6: FilterData.Encoding := TEncoding.BigEndianUnicode;
+    3, 7: FilterData.Encoding := TEncoding.Unicode;
+    5:    FilterData.Encoding := TEncoding.UTF7;
+    else  FilterData.Encoding := TEncoding.ANSI;
+  end;
+  FilterData.UseBOM := BufferEncoding in [1, 2, 3];
+  FilterData.Modified := SendMessage(hScintilla, SCI_GETMODIFY, 0, 0) <> 0;
+
+  Filters := GetSettings('Filters.ini');
+  try
+    FilterData.FilterInfo := TStringList.Create;
+    Filters.ReadSectionValues(FilterName, FilterData.FilterInfo);
+  finally
+    Filters.Free;
+  end;
+
+  FilterData.OnTerminate := FilterThreadTerminate;
+
+  {--- 2013-01-26 Martijn: Create a new TCustomFilterThread ---}
+  FFilterThread := TCustomFilterThread.Create(FilterData);
+  Result := Assigned(FFilterThread);
+  FFilterThread.WaitFor;
+end {TfrmHTMLPreview.ExecuteCustomFilter};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.FilterThreadTerminate(Sender: TObject);
+begin
+ODS('FilterThreadTerminate');
+if (Sender as TThread).FatalException is Exception then
+  ODS('Fatal %s: "%s"', [((Sender as TThread).FatalException as Exception).ClassName, ((Sender as TThread).FatalException as Exception).Message]);
+
+  FFilterThread := nil;
+end {TfrmHTMLPreview.FilterThreadTerminate};
+
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.btnAboutClick(Sender: TObject);
@@ -417,7 +649,6 @@ procedure TfrmHTMLPreview.wbIEBeforeNavigate2(ASender: TObject; const pDisp: IDi
 var
   Handle: HWND;
 begin
-  inherited;
   if not SameText(URL, 'about:blank') and not StartsText('javascript:', URL) then begin
     if Assigned(Npp) then
       Handle := Npp.NppData.NppHandle
@@ -427,6 +658,21 @@ begin
     Cancel := True;
   end;
 end;
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.wbIEDocumentComplete(ASender: TObject; const pDisp: IDispatch;
+  const URL: OleVariant);
+var
+  docEl: IHTMLElement2;
+begin
+  if (FScrollTop <> -1) and Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
+    docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
+    docEl.scrollTop := FScrollTop;
+    docEl.scrollLeft := FScrollLeft;
+    FScrollTop := -1;
+    FScrollLeft := -1;
+  end;
+end {TfrmHTMLPreview.wbIEDocumentComplete};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.wbIENewWindow3(ASender: TObject; var ppDisp: IDispatch;
@@ -454,7 +700,9 @@ end;
 procedure TfrmHTMLPreview.wbIEStatusTextChange(ASender: TObject; const Text: WideString);
 begin
   sbrIE.SimpleText := Text;
-  sbrIE.Visible := Length(Text) > 0;
+//  sbrIE.Visible := Length(Text) > 0;
+//  if sbrIE.Visible then
+  sbrIE.Refresh;
 end;
 
 { ------------------------------------------------------------------------------------------------ }

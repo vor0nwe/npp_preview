@@ -41,13 +41,13 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       Height = 25
       Anchors = [akRight, akBottom]
       Caption = 'Close'
-      TabOrder = 1
+      TabOrder = 4
       OnClick = btnCloseClick
     end
     object sbrIE: TStatusBar
-      Left = 89
+      Left = 143
       Top = 10
-      Width = 295
+      Width = 241
       Height = 19
       Align = alNone
       Anchors = [akLeft, akRight, akBottom]
@@ -64,6 +64,15 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       Caption = '?'
       TabOrder = 2
       OnClick = btnAboutClick
+    end
+    object chkFreeze: TCheckBox
+      Left = 89
+      Top = 10
+      Width = 48
+      Height = 17
+      Caption = '&Freeze'
+      TabOrder = 1
+      OnClick = chkFreezeClick
     end
   end
   object pnlPreview: TPanel
@@ -95,6 +104,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
         OnStatusTextChange = wbIEStatusTextChange
         OnTitleChange = wbIETitleChange
         OnBeforeNavigate2 = wbIEBeforeNavigate2
+        OnDocumentComplete = wbIEDocumentComplete
         OnStatusBar = wbIEStatusBar
         OnNewWindow3 = wbIENewWindow3
         ExplicitLeft = 8

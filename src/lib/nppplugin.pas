@@ -245,6 +245,11 @@ const
 	//Returns TRUE on success, FALSE otherwise
 	//use int, see formatType
 
+	NPPM_DOOPEN = (NOTEPADPLUS_USER + 77);
+	// BOOL NPPM_DOOPEN(0, const TCHAR *fullPathName2Open)
+	// fullPathName2Open indicates the full file path name to be opened.
+	// The return value is TRUE (1) if the operation is successful, otherwise FALSE (0).
+
   // http://sourceforge.net/p/notepad-plus/discussion/482781/thread/c430f474
   NPPM_GETLANGUAGENAME = (NOTEPADPLUS_USER + 83);
    // INT NPPM_GETLANGUAGENAME(int langType, TCHAR *langName)
@@ -722,7 +727,7 @@ begin
   Result := true;
   if (s = filename) then exit;
   r := SendMessage(self.NppData.NppHandle, WM_DOOPEN, 0, LPARAM(PChar(filename)));
-  Result := (r=0);
+  Result := (r<>0);
 end;
 
 function TNppPlugin.DoOpen(filename: String; Line: Integer): boolean;
