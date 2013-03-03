@@ -62,7 +62,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
       Hint = 'About|About this plugin'
       Anchors = [akTop, akRight]
       Caption = '?'
-      TabOrder = 3
+      TabOrder = 2
       OnClick = btnAboutClick
     end
     object chkFreeze: TCheckBox
@@ -104,6 +104,7 @@ inherited frmHTMLPreview: TfrmHTMLPreview
         OnStatusTextChange = wbIEStatusTextChange
         OnTitleChange = wbIETitleChange
         OnBeforeNavigate2 = wbIEBeforeNavigate2
+        OnDocumentComplete = wbIEDocumentComplete
         OnStatusBar = wbIEStatusBar
         OnNewWindow3 = wbIENewWindow3
         ExplicitLeft = 8

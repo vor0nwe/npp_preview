@@ -41,11 +41,15 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure tmrAutorefreshTimer(Sender: TObject);
     procedure chkFreezeClick(Sender: TObject);
+    procedure wbIEDocumentComplete(ASender: TObject; const pDisp: IDispatch; const URL: OleVariant);
   private
     { Private declarations }
     FBufferID: NativeInt;
     FScrollPositions: TStringList;
     FFilterThread: TCustomFilterThread;
+    FScrollTop: Integer;
+    FScrollLeft: Integer;
+
     function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
 
     procedure SaveScrollPos;
@@ -72,7 +76,7 @@ procedure ODS(const DebugOutput: string; const Args: array of const); overload;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  ShellAPI, ComObj, StrUtils, IOUtils, MSHTML,
+  ShellAPI, ComObj, StrUtils, IOUtils, Masks, MSHTML,
   RegExpr,
   WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
@@ -285,6 +289,8 @@ var
   Index, ScrollTop, ScrollLeft: Integer;
   docEl: IHTMLElement2;
 begin
+  FScrollTop := -1;
+  FScrollLeft := -1;
   if FBufferID = -1 then
     Exit;
 
@@ -306,27 +312,19 @@ end {TfrmHTMLPreview.SaveScrollPos};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.RestoreScrollPos(const BufferID: NativeInt);
 var
-  Index, ScrollTop, ScrollLeft: Integer;
+  Index: Integer;
   docEl: IHTMLElement2;
 begin
   {--- MCO 22-01-2013: Look up this buffer's scroll position; if we know one, wait for the page
                           to finish loading, then restore the scroll position. ---}
   Index := FScrollPositions.IndexOfObject(TObject(BufferID));
   if Index > -1 then begin
-    ScrollTop := StrToInt(FScrollPositions.Names[Index]);
-    ScrollLeft := StrToInt(FScrollPositions.ValueFromIndex[Index]);
-    if ScrollTop <> -1 then begin
-      {$MESSAGE HINT 'TODO: This would be better if done in the browsercontrol's DocumentComplete event,
-                            so as to prevent blocking Notepad++ — MCO 22-01-2013'}
-      while not wbIE.ReadyState in [READYSTATE_INTERACTIVE, READYSTATE_COMPLETE] do begin
-        Forms.Application.ProcessMessages;
-        Sleep(0);
-      end;
-      if Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
-        docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
-        docEl.scrollTop := ScrollTop;
-        docEl.scrollLeft := ScrollLeft;
-      end;
+    FScrollTop := StrToInt(FScrollPositions.Names[Index]);
+    FScrollLeft := StrToInt(FScrollPositions.ValueFromIndex[Index]);
+    if (FScrollTop <> -1) and Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
+      docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
+      docEl.scrollTop := FScrollTop;
+      docEl.scrollLeft := FScrollLeft;
     end;
   end;
   FBufferID := BufferID;
@@ -364,6 +362,7 @@ var
   Ext, Language, DocLanguage: string;
   DocLangType, LangType: Integer;
   Extensions: TStringList;
+  Filespec: string;
 begin
   DocFileName := StringOfChar(#0, MAX_PATH);
   SendMessage(Npp.NppData.NppHandle, NPPM_GETFILENAME, WPARAM(Length(DocFileName)), LPARAM(nppPChar(DocFileName)));
@@ -385,7 +384,12 @@ begin
 
       Match := False;
 
-      {$MESSAGE HINT 'TODO: Test entire file name — MCO 22-01-2013'}
+      {--- Martijn 03-03-2013: Test file name ---}
+      Filespec := Trim(Filters.ReadString(Names[i], 'Filename', ''));
+      if (Filespec <> '') then begin
+        // http://docwiki.embarcadero.com/Libraries/XE2/en/System.Masks.MatchesMask#Description
+        Match := Match or MatchesMask(ExtractFileName(DocFileName), Filespec);
+      end;
 
       {--- MCO 22-01-2013: Test extension ---}
       Ext := Trim(Filters.ReadString(Names[i], 'Extension', ''));
@@ -395,7 +399,7 @@ begin
           Extensions.CaseSensitive := False;
           Extensions.Delimiter := ',';
           Extensions.DelimitedText := Ext;
-          Match := Extensions.IndexOf(ExtractFileExt(DocFileName)) > -1;
+          Match := Match or (Extensions.IndexOf(ExtractFileExt(DocFileName)) > -1);
         finally
           Extensions.Free;
         end;
@@ -645,7 +649,6 @@ procedure TfrmHTMLPreview.wbIEBeforeNavigate2(ASender: TObject; const pDisp: IDi
 var
   Handle: HWND;
 begin
-  inherited;
   if not SameText(URL, 'about:blank') and not StartsText('javascript:', URL) then begin
     if Assigned(Npp) then
       Handle := Npp.NppData.NppHandle
@@ -655,6 +658,21 @@ begin
     Cancel := True;
   end;
 end;
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TfrmHTMLPreview.wbIEDocumentComplete(ASender: TObject; const pDisp: IDispatch;
+  const URL: OleVariant);
+var
+  docEl: IHTMLElement2;
+begin
+  if (FScrollTop <> -1) and Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
+    docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
+    docEl.scrollTop := FScrollTop;
+    docEl.scrollLeft := FScrollLeft;
+    FScrollTop := -1;
+    FScrollLeft := -1;
+  end;
+end {TfrmHTMLPreview.wbIEDocumentComplete};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.wbIENewWindow3(ASender: TObject; var ppDisp: IDispatch;

@@ -28,12 +28,6 @@
 			<CfgParent>Base</CfgParent>
 			<Base>true</Base>
 		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win32)'!=''">
-			<Cfg_1_Win32>true</Cfg_1_Win32>
-			<CfgParent>Cfg_1</CfgParent>
-			<Cfg_1>true</Cfg_1>
-			<Base>true</Base>
-		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
 			<Cfg_2>true</Cfg_2>
 			<CfgParent>Base</CfgParent>
@@ -46,15 +40,14 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
-			<VerInfo_MinorVer>2</VerInfo_MinorVer>
-			<VerInfo_Release>1</VerInfo_Release>
+			<VerInfo_MinorVer>3</VerInfo_MinorVer>
 			<PostBuildEventCancelOnError>false</PostBuildEventCancelOnError>
 			<PostBuildEvent><![CDATA["C:\MC\Run\Util\Compression\UPX\upx.exe" --best -q "$(OUTPUTPATH)"
 $(PostBuildEvent)]]></PostBuildEvent>
 			<VerInfo_AutoGenVersion>true</VerInfo_AutoGenVersion>
 			<VerInfo_DLL>true</VerInfo_DLL>
 			<DCC_ImageBase>00400000</DCC_ImageBase>
-			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.2.0.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
+			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.3.0.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
 			<DCC_UsePackage>vcl;rtl;dbrtl;adortl;vcldb;vclx;bdertl;vcldbx;ibxpress;dsnap;cds;bdecds;qrpt;teeui;teedb;tee;dss;teeqr;visualclx;visualdbclx;dsnapcrba;dsnapcon;VclSmp;vclshlctrls;vclie;xmlrtl;inet;inetdbbde;inetdbxpress;inetdb;nmfast;webdsnap;websnap;soaprtl;dbexpress;dbxcds;indy;dclOffice2k;dOCI6;CoolTrayIcon_D6plus;curlpkg;ThemeManagerD6;VirtualTreesD6;Jcl;JclVcl;JvCoreD6R;JvSystemD6R;JvStdCtrlsD6R;JvAppFrmD6R;JvBandsD6R;JvDBD6R;JvDlgsD6R;JvBDED6R;JvCmpD6R;JvCryptD6R;JvCtrlsD6R;JvCustomD6R;JvDockingD6R;JvDotNetCtrlsD6R;JvEDID6R;JvGlobusD6R;JvHMID6R;JvInterpreterD6R;JvJansD6R;JvManagedThreadsD6R;JvMMD6R;JvNetD6R;JvPageCompsD6R;JvPluginD6R;JvPrintPreviewD6R;JvRuntimeDesignD6R;JvTimeFrameworkD6R;JvUIBD6R;JvValidatorsD6R;JvWizardD6R;JvXPCtrlsD6R;$(DCC_UsePackage)</DCC_UsePackage>
 			<DCC_ExeOutput>..\..\out\$(PLATFORM)\$(CONFIG)</DCC_ExeOutput>
 			<DCC_Define>NPPUNICODE;$(DCC_Define)</DCC_Define>
@@ -84,9 +77,6 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
 			<DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
 		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
-			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.2.1.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
-		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
 			<DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -94,8 +84,9 @@ $(PostBuildEvent)]]></PostBuildEvent>
 			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+			<VerInfo_Release>0</VerInfo_Release>
 			<VerInfo_Debug>true</VerInfo_Debug>
-			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.2.1.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
+			<VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.3.0.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
 			<PostBuildEvent><![CDATA[]]></PostBuildEvent>
 		</PropertyGroup>
 		<ItemGroup>

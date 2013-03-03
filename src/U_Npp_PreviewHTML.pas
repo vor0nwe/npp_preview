@@ -251,7 +251,6 @@ procedure TNppPluginPreviewHTML.DoNppnBufferActivated(const BufferID: Cardinal);
 begin
   inherited;
   if Assigned(frmHTMLPreview) and frmHTMLPreview.Visible then begin
-{$MESSAGE HINT 'TODO: only refresh the preview if it’s configured to follow the active tab'}
     frmHTMLPreview.btnRefresh.Click;
   end;
 end {TNppPluginPreviewHTML.DoNppnBufferActivated};
