@@ -15,6 +15,7 @@ type
     procedure CommandShowPreview;
     procedure CommandSetIEVersion(const BrowserEmulation: Integer);
     procedure CommandOpenFile(const Filename: nppString);
+    procedure CommandCheckUpdate;
     procedure CommandShowAbout;
     procedure CommandReplaceHelloWorld;
 
@@ -25,6 +26,7 @@ type
   end {TNppPluginPreviewHTML};
 
 procedure _FuncReplaceHelloWorld; cdecl;
+procedure _FuncCheckUpdate; cdecl;
 procedure _FuncShowPreview; cdecl;
 procedure _FuncOpenSettings; cdecl;
 procedure _FuncOpenFilters; cdecl;
@@ -45,7 +47,8 @@ var
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 implementation
 uses
-  WebBrowser, Registry;
+  WebBrowser, Registry,
+  U_AutoUpdate;
 
 { ================================================================================================ }
 { TNppPluginPreviewHTML }
@@ -96,6 +99,10 @@ begin
 
   self.AddFuncSeparator;
 
+  self.AddFuncItem('Check for &update', _FuncCheckUpdate);
+
+  self.AddFuncSeparator;
+
   self.AddFuncItem('&About', _FuncShowAbout);
 end {TNppPluginPreviewHTML.Create};
 
@@ -103,6 +110,11 @@ end {TNppPluginPreviewHTML.Create};
 procedure _FuncReplaceHelloWorld; cdecl;
 begin
   Npp.CommandReplaceHelloWorld;
+end;
+{ ------------------------------------------------------------------------------------------------ }
+procedure _FuncCheckUpdate; cdecl;
+begin
+  Npp.CommandCheckUpdate;
 end;
 { ------------------------------------------------------------------------------------------------ }
 procedure _FuncOpenSettings; cdecl;
@@ -160,6 +172,29 @@ begin
   Npp.CommandSetIEVersion(13000);
 end;
 
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TNppPluginPreviewHTML.CommandCheckUpdate;
+var
+  Cur, Next: string;
+  Update: TPluginUpdate;
+begin
+  try
+    Update := TPluginUpdate.Create;
+    try
+      Cur := Update.CurrentVersion;
+      Next := Update.LatestVersion;
+    finally
+      Update.Free;
+    end;
+    MessageBox(Npp.NppData.NppHandle,
+              PChar(Format('Current: "%s"; Latest: "%s"; Difference: %d',
+                          [Cur, Next, TPluginUpdate.CompareVersions(Cur, Next)])),
+              PChar(Caption), MB_ICONINFORMATION);
+  except
+    ShowException(ExceptObject, ExceptAddr);
+  end;
+end {TNppPluginPreviewHTML.CommandCheckUpdate};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandOpenFile(const Filename: nppString);
