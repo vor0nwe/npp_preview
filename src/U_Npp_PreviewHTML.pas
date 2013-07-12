@@ -4,12 +4,14 @@ unit U_Npp_PreviewHTML;
 interface
 
 uses
-  SysUtils, Windows,
+  SysUtils, Windows, IniFiles,
   NppPlugin, SciSupport,
   F_About, F_PreviewHTML;
 
 type
   TNppPluginPreviewHTML = class(TNppPlugin)
+  private
+    FSettings: TIniFile;
   public
     constructor Create;
     procedure CommandShowPreview;
@@ -22,6 +24,8 @@ type
     procedure DoNppnFileClosed(const BufferID: Cardinal); override;
     procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
     procedure DoModified(const hwnd: HWND; const modificationType: Integer); override;
+
+    function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
   end {TNppPluginPreviewHTML};
 
 procedure _FuncReplaceHelloWorld; cdecl;
@@ -65,6 +69,9 @@ begin
   self.AddFuncItem('&Preview HTML', _FuncShowPreview, sk);
 
   IEVersion := GetIEVersion;
+  with GetSettings do begin
+    IEVersion := ReadString('Emulation', 'IE version', IEVersion);
+  end;
   Val(IEVersion, MajorIEVersion, Code);
   if Code <= 1 then
     MajorIEVersion := 0;
@@ -232,6 +239,14 @@ begin
     frmHTMLPreview.btnRefresh.Click;
   end;
 end {TNppPluginPreviewHTML.CommandShowPreview};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TNppPluginPreviewHTML.GetSettings(const Name: string): TIniFile;
+begin
+  ForceDirectories(ConfigDir + '\PreviewHTML');
+  Result := TIniFile.Create(ConfigDir + '\PreviewHTML\' + Name);
+end {TNppPluginPreviewHTML.GetSettings};
+
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.DoNppnToolbarModification;
