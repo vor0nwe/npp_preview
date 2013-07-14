@@ -4,14 +4,19 @@ unit U_Npp_PreviewHTML;
 interface
 
 uses
-  SysUtils, Windows,
+  SysUtils, Windows, IniFiles,
   NppPlugin, SciSupport,
   F_About, F_PreviewHTML;
 
 type
   TNppPluginPreviewHTML = class(TNppPlugin)
+  private
+    FSettings: TIniFile;
   public
     constructor Create;
+
+    procedure SetInfo(NppData: TNppData); override;
+
     procedure CommandShowPreview;
     procedure CommandSetIEVersion(const BrowserEmulation: Integer);
     procedure CommandOpenFile(const Filename: nppString);
@@ -22,6 +27,8 @@ type
     procedure DoNppnFileClosed(const BufferID: Cardinal); override;
     procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
     procedure DoModified(const hwnd: HWND; const modificationType: Integer); override;
+
+    function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
   end {TNppPluginPreviewHTML};
 
 procedure _FuncReplaceHelloWorld; cdecl;
@@ -46,58 +53,6 @@ var
 implementation
 uses
   WebBrowser, Registry;
-
-{ ================================================================================================ }
-{ TNppPluginPreviewHTML }
-
-{ ------------------------------------------------------------------------------------------------ }
-constructor TNppPluginPreviewHTML.Create;
-var
-  IEVersion: string;
-  MajorIEVersion, Code, EmulatedVersion: Integer;
-  sk: TShortcutKey;
-begin
-  inherited;
-  self.PluginName := '&Preview HTML';
-
-  sk.IsShift := True; sk.IsCtrl := true; sk.IsAlt := False;
-  sk.Key := 'H'; // Ctrl-Shift-H
-  self.AddFuncItem('&Preview HTML', _FuncShowPreview, sk);
-
-  IEVersion := GetIEVersion;
-  Val(IEVersion, MajorIEVersion, Code);
-  if Code <= 1 then
-    MajorIEVersion := 0;
-
-  EmulatedVersion := GetBrowserEmulation div 1000;
-
-  if MajorIEVersion > 7 then begin
-    self.AddFuncSeparator;
-    self.AddFuncItem('View as IE&7', _FuncSetIE7, EmulatedVersion = 7);
-  end;
-
-  if MajorIEVersion >= 8 then
-    self.AddFuncItem('View as IE&8', _FuncSetIE8, EmulatedVersion = 8);
-  if MajorIEVersion >= 9 then
-    self.AddFuncItem('View as IE&9', _FuncSetIE9, EmulatedVersion = 9);
-  if MajorIEVersion >= 10 then
-    self.AddFuncItem('View as IE1&0', _FuncSetIE10, EmulatedVersion = 10);
-  if MajorIEVersion >= 11 then
-    self.AddFuncItem('View as IE1&1', _FuncSetIE11, EmulatedVersion = 11);
-  if MajorIEVersion >= 12 then
-    self.AddFuncItem('View as IE1&2', _FuncSetIE12, EmulatedVersion = 12);
-  if MajorIEVersion >= 13 then
-    self.AddFuncItem('View as IE1&3', _FuncSetIE13, EmulatedVersion = 13);
-
-  self.AddFuncSeparator;
-
-  self.AddFuncItem('Edit &settings', _FuncOpenSettings);
-  self.AddFuncItem('Edit &filter definitions', _FuncOpenFilters);
-
-  self.AddFuncSeparator;
-
-  self.AddFuncItem('&About', _FuncShowAbout);
-end {TNppPluginPreviewHTML.Create};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure _FuncReplaceHelloWorld; cdecl;
@@ -160,6 +115,68 @@ begin
   Npp.CommandSetIEVersion(13000);
 end;
 
+
+{ ================================================================================================ }
+{ TNppPluginPreviewHTML }
+
+{ ------------------------------------------------------------------------------------------------ }
+constructor TNppPluginPreviewHTML.Create;
+begin
+  inherited;
+  self.PluginName := '&Preview HTML';
+end {TNppPluginPreviewHTML.Create};
+
+{ ------------------------------------------------------------------------------------------------ }
+procedure TNppPluginPreviewHTML.SetInfo(NppData: TNppData);
+var
+  IEVersion: string;
+  MajorIEVersion, Code, EmulatedVersion: Integer;
+  sk: TShortcutKey;
+begin
+  inherited;
+
+  sk.IsShift := True; sk.IsCtrl := true; sk.IsAlt := False;
+  sk.Key := 'H'; // Ctrl-Shift-H
+  self.AddFuncItem('&Preview HTML', _FuncShowPreview, sk);
+
+  IEVersion := GetIEVersion;
+  with GetSettings do begin
+    IEVersion := ReadString('Emulation', 'Installed IE version', IEVersion);
+    Free;
+  end;
+  Val(IEVersion, MajorIEVersion, Code);
+  if Code <= 1 then
+    MajorIEVersion := 0;
+
+  EmulatedVersion := GetBrowserEmulation div 1000;
+
+  if MajorIEVersion > 7 then begin
+    self.AddFuncSeparator;
+    self.AddFuncItem('View as IE&7', _FuncSetIE7, EmulatedVersion = 7);
+  end;
+
+  if MajorIEVersion >= 8 then
+    self.AddFuncItem('View as IE&8', _FuncSetIE8, EmulatedVersion = 8);
+  if MajorIEVersion >= 9 then
+    self.AddFuncItem('View as IE&9', _FuncSetIE9, EmulatedVersion = 9);
+  if MajorIEVersion >= 10 then
+    self.AddFuncItem('View as IE1&0', _FuncSetIE10, EmulatedVersion = 10);
+  if MajorIEVersion >= 11 then
+    self.AddFuncItem('View as IE1&1', _FuncSetIE11, EmulatedVersion = 11);
+  if MajorIEVersion >= 12 then
+    self.AddFuncItem('View as IE1&2', _FuncSetIE12, EmulatedVersion = 12);
+  if MajorIEVersion >= 13 then
+    self.AddFuncItem('View as IE1&3', _FuncSetIE13, EmulatedVersion = 13);
+
+  self.AddFuncSeparator;
+
+  self.AddFuncItem('Edit &settings', _FuncOpenSettings);
+  self.AddFuncItem('Edit &filter definitions', _FuncOpenFilters);
+
+  self.AddFuncSeparator;
+
+  self.AddFuncItem('&About', _FuncShowAbout);
+end {TNppPluginPreviewHTML.SetInfo};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandOpenFile(const Filename: nppString);
@@ -232,6 +249,14 @@ begin
     frmHTMLPreview.btnRefresh.Click;
   end;
 end {TNppPluginPreviewHTML.CommandShowPreview};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TNppPluginPreviewHTML.GetSettings(const Name: string): TIniFile;
+begin
+  ForceDirectories(ConfigDir + '\PreviewHTML');
+  Result := TIniFile.Create(ConfigDir + '\PreviewHTML\' + Name);
+end {TNppPluginPreviewHTML.GetSettings};
+
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.DoNppnToolbarModification;

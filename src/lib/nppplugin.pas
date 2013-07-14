@@ -514,6 +514,7 @@ type
     procedure GetFileLine(var filename: String; var Line: Integer);
     function GetWord: string;
 
+    // helpers
     property ConfigDir: string  read GetPluginsConfigDir;
   end;
 

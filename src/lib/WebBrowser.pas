@@ -24,7 +24,7 @@ function GetIEVersion: string;
 
 implementation
 uses
-  SysUtils, Forms, ActiveX, Variants, Registry, Windows;
+  SysUtils, Forms, ActiveX, Variants, Registry, Windows, L_VersionInfoW;
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TWBHelper.ExecJS(const Code: string);
@@ -149,14 +149,32 @@ end {SetBrowserEmulation};
 { ------------------------------------------------------------------------------------------------ }
 function GetIEVersion: string;
 var
+  Exe: string;
+  Dummy: PChar;
+  VerInfo: TFileVersionInfo;
   Reg: TRegistry;
 begin
+  SetLength(Exe, MAX_PATH);
+  SetLength(Exe, SearchPath(nil, 'iexplore.exe', nil, MAX_PATH, PChar(Exe), Dummy));
+  if Length(Exe) > 0 then begin
+    VerInfo := TFileVersionInfo.Create(Exe);
+    try
+      Result := Format('%d.%d.%d.%d', [VerInfo.MajorVersion, VerInfo.MinorVersion, VerInfo.Revision, VerInfo.Build]);
+      Exit;
+    finally
+      VerInfo.Free;
+    end;
+  end;
+
   try
     Reg := TRegistry.Create;
     try
       Reg.RootKey := HKEY_LOCAL_MACHINE;
       Reg.OpenKeyReadOnly('Software\Microsoft\Internet Explorer');
-      Result := Reg.ReadString('Version');
+      if Reg.ValueExists('svcVersion') then
+        Result := Reg.ReadString('svcVersion')
+      else
+        Result := Reg.ReadString('Version');
       Reg.CloseKey;
     finally
       Reg.Free;

@@ -50,8 +50,6 @@ type
     FScrollTop: Integer;
     FScrollLeft: Integer;
 
-    function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
-
     procedure SaveScrollPos;
     procedure RestoreScrollPos(const BufferID: NativeInt);
 
@@ -106,8 +104,9 @@ begin
   self.OnDock := self.FormDock;
   inherited;
   FBufferID := -1;
-  with GetSettings() do begin
+  with TNppPluginPreviewHTML(Npp).GetSettings() do begin
     tmrAutorefresh.Interval := ReadInteger('Autorefresh', 'Interval', tmrAutorefresh.Interval);
+    Free;
   end;
 end {TfrmHTMLPreview.FormCreate};
 { ------------------------------------------------------------------------------------------------ }
@@ -473,7 +472,7 @@ begin
   FilterData.UseBOM := BufferEncoding in [1, 2, 3];
   FilterData.Modified := SendMessage(hScintilla, SCI_GETMODIFY, 0, 0) <> 0;
 
-  Filters := GetSettings('Filters.ini');
+  Filters := TNppPluginPreviewHTML(Npp).GetSettings('Filters.ini');
   try
     FilterData.FilterInfo := TStringList.Create;
     Filters.ReadSectionValues(FilterName, FilterData.FilterInfo);
@@ -551,13 +550,6 @@ begin
   inherited;
   SendMessage(self.Npp.NppData.NppHandle, NPPM_SETMENUITEMCHECK, self.CmdID, 1);
 end;
-
-{ ------------------------------------------------------------------------------------------------ }
-function TfrmHTMLPreview.GetSettings(const Name: string): TIniFile;
-begin
-  ForceDirectories(Npp.ConfigDir + '\PreviewHTML');
-  Result := TIniFile.Create(Npp.ConfigDir + '\PreviewHTML\' + Name);
-end {TfrmHTMLPreview.GetSettings};
 
 { ------------------------------------------------------------------------------------------------ }
 function TfrmHTMLPreview.TransformXMLToHTML(const XML: WideString): string;
