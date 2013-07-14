@@ -2,6 +2,11 @@ Preview HTML plugin for Notepad++
 =================================
 http://fossil.2of4.net/npp_preview
 
+v1.3.1.0, 2013-07-14
+--------------------
+- Fixed: IE 10 was not properly recognized.
+- Added: possibility to override the installed version of IE using via [settings].
+
 v1.3.0.0, 2013-03-03
 --------------------
 - Added: ability to define output filters, that can convert source code to HTML before previewing.
