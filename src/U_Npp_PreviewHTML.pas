@@ -120,29 +120,7 @@ end;
 { ------------------------------------------------------------------------------------------------ }
 procedure _FuncSetIE13; cdecl;
 begin
-  Npp.CommandSetIEVersion(1procedure TNppPluginPreviewHTML.CommandCheckUpdate;
-var
-  Cur, Next: string;
-  Update: TPluginUpdate;
-begin
-  try
-    Update := TPluginUpdate.Create;
-    try
-      Cur := Update.CurrentVersion;
-      Next := Update.LatestVersion;
-    finally
-      Update.Free;
-    end;
-    MessageBox(Npp.NppData.NppHandle,
-              PChar(Format('Current: "%s"; Latest: "%s"; Difference: %d',
-                          [Cur, Next, TPluginUpdate.CompareVersions(Cur, Next)])),
-              PChar(Caption), MB_ICONINFORMATION);
-  except
-    ShowException(ExceptObject, ExceptAddr);
-  end;
-end {TNppPluginPreviewHTML.CommandCheckUpdate};
-
-3000);
+  Npp.CommandSetIEVersion(13000);
 end;
 
 
@@ -207,7 +185,6 @@ begin
 
   self.AddFuncItem('&About', _FuncShowAbout);
 end {TNppPluginPreviewHTML.SetInfo};
-
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandCheckUpdate;
