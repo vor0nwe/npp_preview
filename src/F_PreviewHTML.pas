@@ -106,6 +106,7 @@ begin
   FBufferID := -1;
   with TNppPluginPreviewHTML(Npp).GetSettings() do begin
     tmrAutorefresh.Interval := ReadInteger('Autorefresh', 'Interval', tmrAutorefresh.Interval);
+    Free;
   end;
 end {TfrmHTMLPreview.FormCreate};
 { ------------------------------------------------------------------------------------------------ }
