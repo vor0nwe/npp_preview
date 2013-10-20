@@ -118,6 +118,7 @@ var
   HTML: string;
   HeadStart: Integer;
   FilterName: string;
+  CodePage: NativeInt;
 begin
   try
     SaveScrollPos;
@@ -141,11 +142,20 @@ begin
     {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
 
     if IsXML or IsHTML or IsCustom then begin
+      CodePage := SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0);
       Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
       SetLength(Content, Size);
       SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
-      Content := UTF8String(PAnsiChar(Content));
-      HTML := string(Content);
+      if CodePage = CP_ACP then begin
+        HTML := string(PAnsiChar(Content));
+      end else begin
+        SetLength(HTML, Size);
+        if Size > 0 then begin
+          SetLength(HTML, MultiByteToWideChar(CodePage, MB_PRECOMPOSED, PAnsiChar(Content), Size, PWideChar(HTML), Length(HTML)));
+          if Length(HTML) = 0 then
+            RaiseLastOSError;
+        end;
+      end;
     end;
 
     if IsCustom then begin
