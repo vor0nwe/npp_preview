@@ -183,6 +183,10 @@ begin
 
   self.AddFuncSeparator;
 
+  self.AddFuncItem('Check for &updates', _FuncCheckUpdate);
+
+  self.AddFuncSeparator;
+
   self.AddFuncItem('&About', _FuncShowAbout);
 end {TNppPluginPreviewHTML.SetInfo};
 
@@ -191,18 +195,25 @@ procedure TNppPluginPreviewHTML.CommandCheckUpdate;
 var
   Cur, Next: string;
   Update: TPluginUpdate;
+  Notes: string;
+  Yay: Boolean;
 begin
   try
     Update := TPluginUpdate.Create;
     try
       Cur := Update.CurrentVersion;
       Next := Update.LatestVersion;
+      Yay := Update.IsUpdateAvailable(Next, Notes);
     finally
       Update.Free;
     end;
     MessageBox(Npp.NppData.NppHandle,
               PChar(Format('Current: "%s"; Latest: "%s"; Difference: %d',
                           [Cur, Next, TPluginUpdate.CompareVersions(Cur, Next)])),
+              PChar(Caption), MB_ICONINFORMATION);
+    MessageBox(Npp.NppData.NppHandle,
+              PChar(Format('Is update available? %s! Latest version: "%s"'#10#10'%s',
+                          [BoolToStr(Yay, True), Next, Notes])),
               PChar(Caption), MB_ICONINFORMATION);
   except
     ShowException(ExceptObject, ExceptAddr);
