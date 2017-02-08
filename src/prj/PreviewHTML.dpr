@@ -24,7 +24,7 @@ uses
   NppDockingForms in '..\lib\NppDockingForms.pas' {NppDockingForm},
   U_Npp_PreviewHTML in '..\U_Npp_PreviewHTML.pas',
   F_About in '..\F_About.pas' {AboutForm},
-  F_PreviewHTML in '..\F_PreviewHTML.pas' {HelloWorldDockingForm},
+  F_PreviewHTML in '..\F_PreviewHTML.pas' {frmHTMLPreview},
   WebBrowser in '..\lib\WebBrowser.pas',
   L_VersionInfoW in '..\common\L_VersionInfoW.pas',
   L_SpecialFolders in '..\common\L_SpecialFolders.pas',

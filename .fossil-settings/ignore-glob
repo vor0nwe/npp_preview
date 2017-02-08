@@ -1,0 +1,15 @@
+*/__history/*
+out/
+*.dcu
+*.exe
+*.local
+*.identcache
+*.dsk
+*.stat
+~*.*
+*.~*
+*.bak
+*.rej
+*.org
+*.res
+*/__recover/*
