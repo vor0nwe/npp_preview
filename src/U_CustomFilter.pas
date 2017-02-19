@@ -38,6 +38,7 @@ implementation
 uses
   IOUtils,
   process, Pipes,
+  Debug,
   F_PreviewHTML;
 
 { TCustomFilterThread }

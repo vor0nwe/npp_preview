@@ -30,7 +30,8 @@ uses
   L_SpecialFolders in '..\common\L_SpecialFolders.pas',
   RegExpr in '..\common\RegExpr.pas',
   U_CustomFilter in '..\U_CustomFilter.pas',
-  U_AutoUpdate in '..\U_AutoUpdate.pas';
+  U_AutoUpdate in '..\U_AutoUpdate.pas',
+  Debug in '..\Debug.pas';
 
 {$R *.res}
 
