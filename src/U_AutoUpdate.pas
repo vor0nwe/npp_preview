@@ -19,7 +19,7 @@ type
 
     function IsUpdateAvailable(out NewVersion, Changes: string): Boolean;
     function DownloadUpdate: string;
-    function ReplacePlugin(const PathExtracted: string): Boolean;
+    function ReplacePlugin(const PathDownloaded: string): Boolean;
 
     property URL: string            read FURL;
 
@@ -33,20 +33,9 @@ type
 
 implementation
 uses
-  RegularExpressions, Windows,
-  L_HttpClient, L_VersionInfoW, L_SpecialFolders;
-
-{ ------------------------------------------------------------------------------------------------ }
-procedure ODS(const DebugOutput: string); overload;
-begin
-  OutputDebugString(PChar('PreviewHTML['+IntToHex(GetCurrentThreadId, 4)+']: ' + DebugOutput));
-end {ODS};
-{ ------------------------------------------------------------------------------------------------ }
-procedure ODS(const DebugOutput: string; const Args: array of const); overload;
-begin
-  ODS(Format(DebugOutput, Args));
-end{ODS};
-
+  Classes, RegularExpressions, Windows, NetEncoding, Zip,
+  L_HttpClient, L_VersionInfoW, L_SpecialFolders,
+  Debug;
 
 { ------------------------------------------------------------------------------------------------ }
 { TPluginUpdate }
@@ -77,13 +66,11 @@ function TPluginUpdate.IsUpdateAvailable(out NewVersion, Changes: string): Boole
 var
   Http: THttpClient;
   Notes: string;
-  RxVersion: TRegEx;
   Matches: TMatchCollection;
   Match: TMatch;
-  i: Integer;
+  s: string;
+  FirstPos, LastPos: Integer;
 begin
-  Result := False;
-
   // Download the current release notes
   ODS('Create HttpClient');
   Http := THttpClient.Create('http://fossil.2of4.net/npp_preview/doc/publish/ReleaseNotes.txt');
@@ -91,27 +78,40 @@ begin
     ODS('Http.Get');
     if Http.Get() = 200 then begin
       ODS('%d %s', [Http.StatusCode, Http.StatusText]);
-      for i := 0 to Http.ResponseHeaders.Count - 1 do
-        ODS(Http.ResponseHeaders[i]);
+      for s in Http.ResponseHeaders do
+        ODS(s);
+      // get the response stream, and look for the latest version in there
       Notes := Http.ResponseString;
       ODS('Response: "%s"', [Copy(StringReplace(StringReplace(Notes, #10, '·', [rfReplaceAll]), #13, '·', [rfReplaceAll]), 1, 250)]);
-      // get the response stream, and look for the latest version in there
+
+      NewVersion := '';
+      FirstPos := -1;
+      LastPos := -1;
+
       Matches := TRegEx.Matches(Notes, 'v[0-9]+(\.[0-9]+){3}');
       ODS('Matches: %d', [Matches.Count]);
-      if Matches.Count > 0 then begin
-        Match := Matches.Item[0];
+      for Match in Matches do begin
         ODS('Match: Success=%s; Value="%s"; Index=%d', [BoolToStr(Match.Success, True), Match.Value, Match.Index]);
-        if Match.Success then begin
+        if NewVersion = '' then
           NewVersion := Match.Value;
-          {$MESSAGE WARN 'TODO: read all versions until we find the current one. Otherwise stop at </pre>.'}
-          if (Matches.Count > 1) and Matches[1].Success then begin
-            Changes := Notes.Substring(Match.Index - 1, Matches[1].Index - Match.Index);
-          end else begin
-            i := Pos('</pre>', Notes);
-            Changes := Notes.Substring(Match.Index - 1, i - Match.Index);
-          end;
+        if FirstPos = -1 then
+          FirstPos := Match.Index;
+        if CompareVersions(CurrentVersion, Match.Value) <= 0 then begin
+          // This version is equal or older than the current version
+          LastPos := Match.Index;
+          Break;
         end;
-      end;
+      end {for};
+
+      if FirstPos = -1 then
+        FirstPos := Notes.IndexOf('<pre>') + 5;
+      if (LastPos = -1) or (LastPos = FirstPos) then
+        LastPos := Notes.IndexOf('</pre>');
+
+      Changes := Notes.Substring(FirstPos - 1, LastPos - FirstPos);
+      ODS('NewVersion: "%s"; Changes: "%s"', [NewVersion, Changes]);
+
+      Changes := TNetEncoding.HTML.Decode(Changes.Trim);
     end else begin
       // TODO: show message, open project's main page?
       raise EUpdateError.CreateFmt('%d %s', [Http.StatusCode, Http.StatusText]);
@@ -121,23 +121,90 @@ begin
   end;
 
   Result := CompareVersions(CurrentVersion, NewVersion) > 0;
-  // TODO: Populate Changes from the text between the match of the first version number, and the next (or, if there is no next, the </pre> tag).
+
+  FLatestVersion := NewVersion;
 end {TPluginUpdate.IsUpdateAvailable};
 
 { ------------------------------------------------------------------------------------------------ }
 function TPluginUpdate.DownloadUpdate: string;
+var
+  Http: THttpClient;
+  FS: TFileStream;
 begin
   // TODO: Download http://fossil.2of4.net/npp_preview/zip/Preview_Plugin.zip?uuid=publish&name=plugins to a temp dir,
   //  extract it to a custom temp folder, and return that folder's path
+  Http := THttpClient.Create('http://fossil.2of4.net/npp_preview/zip/Preview_Plugin.zip?uuid=publish&name=plugins');
+  try
+    if Http.Get() = 200 then begin
+      Result := TSpecialFolders.TempDll + 'Preview_Plugin.zip';
+      FS := TFileStream.Create(Result, fmCreate or fmShareDenyWrite);
+      try
+        FS.CopyFrom(Http.ResponseStream, 0);
+      finally
+        FS.Free;
+      end;
+    end else begin
+      // TODO: show message, open project's main page?
+      raise EUpdateError.CreateFmt('%d %s', [Http.StatusCode, Http.StatusText]);
+    end;
+  finally
+    Http.Free;
+  end;
 end {TPluginUpdate.DownloadUpdate};
 
 { ------------------------------------------------------------------------------------------------ }
-function TPluginUpdate.ReplacePlugin(const PathExtracted: string): Boolean;
+function TPluginUpdate.ReplacePlugin(const PathDownloaded: string): Boolean;
+var
+  NppDir: string;
+  Zip: TZipFile;
+  i: Integer;
+  Info: TZipHeader;
+  Name: string;
+  Backup: string;
 begin
+  NppDir := TSpecialFolders.DLL + '..\';
+
+  Zip := TZipFile.Create;
+  try
+    ODS(PathDownloaded);
+    Zip.Open(PathDownloaded, zmRead);
+    for i := 0 to Zip.FileCount - 1 do begin
+      Info := Zip.FileInfo[i];
+      Name := Zip.FileName[i].Replace('/', '\');
+      ODS(Name);
+
+      if Name.EndsWith('\') then Continue; // Skip directories
+
+      if SameFileName(ExtractFileName(Name), 'ReleaseNotes.txt') then begin
+        Name := Name.Replace('ReleaseNotes.txt', 'Doc\PreviewHTML\ReleaseNotes.txt', [rfIgnoreCase]);
+        ODS('=> ' + Name);
+      end;
+
+      if FileExists(NppDir + Name) then begin
+        Backup := NppDir + ChangeFileExt(Name, '-' + CurrentVersion + ExtractFileExt(Name));
+        if SameFileName(ExtractFileExt(Name), '.dll') then begin
+          Backup := ChangeFileExt(Backup, '.~' + ExtractFileExt(Backup).Substring(1));
+          ODS('Backup: ' + Backup);
+          Win32Check(RenameFile(NppDir + Name, Backup));
+        end else begin
+          ODS('Backup: ' + Backup);
+          Win32Check(CopyFile(PChar(NppDir + Name), PChar(Backup), False));
+        end;
+      end;
+
+      ODS('Extracting file to: ' + NppDir + Name);
+      ForceDirectories(ExtractFileDir(NppDir + Name));
+      Zip.Extract(i, ExtractFileDir(NppDir + Name), False);
+    end {for};
+  finally
+    Zip.Free;
+  end;
+
   // TODO: Rename the current DLL to ChangeFileExt(DllName, '-' + OwnVersion + '.~dll')
   // HardlinkOrCopy all files in extract location to path relative to plugins folder. ./Config should
   //  be translated to PluginsConfigFolder. ReleaseNotes.txt gets special treatment: it's in the
   //  root folder, but should be moved to ./Doc/PreviewHTML.
+  Result := True;
 end {TPluginUpdate.ReplacePlugin};
 
 { ------------------------------------------------------------------------------------------------ }

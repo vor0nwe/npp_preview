@@ -12,6 +12,7 @@ type
   TNppPluginPreviewHTML = class(TNppPlugin)
   private
     FSettings: TIniFile;
+    FUpdated: Boolean;
   public
     constructor Create;
 
@@ -20,9 +21,8 @@ type
     procedure CommandShowPreview;
     procedure CommandSetIEVersion(const BrowserEmulation: Integer);
     procedure CommandOpenFile(const Filename: nppString);
-    procedure CommandCheckUpdate;
+    procedure CommandCheckUpdates;
     procedure CommandShowAbout;
-    procedure CommandReplaceHelloWorld;
 
     procedure DoNppnToolbarModification; override;
     procedure DoNppnFileClosed(const BufferID: THandle); override;
@@ -32,7 +32,6 @@ type
     function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
   end {TNppPluginPreviewHTML};
 
-procedure _FuncReplaceHelloWorld; cdecl;
 procedure _FuncCheckUpdate; cdecl;
 procedure _FuncShowPreview; cdecl;
 procedure _FuncOpenSettings; cdecl;
@@ -58,14 +57,9 @@ uses
   U_AutoUpdate;
 
 { ------------------------------------------------------------------------------------------------ }
-procedure _FuncReplaceHelloWorld; cdecl;
-begin
-  Npp.CommandReplaceHelloWorld;
-end;
-{ ------------------------------------------------------------------------------------------------ }
 procedure _FuncCheckUpdate; cdecl;
 begin
-  Npp.CommandCheckUpdate;
+  Npp.CommandCheckUpdates;
 end;
 { ------------------------------------------------------------------------------------------------ }
 procedure _FuncOpenSettings; cdecl;
@@ -191,30 +185,50 @@ begin
 end {TNppPluginPreviewHTML.SetInfo};
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TNppPluginPreviewHTML.CommandCheckUpdate;
+procedure TNppPluginPreviewHTML.CommandCheckUpdates;
+const
+  scYesNo: array[Boolean] of string = ('No', 'Yes');
 var
-  Cur, Next: string;
+  Current, Latest, Notes: string;
   Update: TPluginUpdate;
-  Notes: string;
-  Yay: Boolean;
+  ZipPath: string;
 begin
   try
+    if FUpdated then begin
+      MessageBox(Npp.NppData.NppHandle, 'Please restart Notepad++ first!', PChar(Caption), MB_ICONWARNING);
+      Exit;
+    end;
+
     Update := TPluginUpdate.Create;
     try
-      Cur := Update.CurrentVersion;
-      Next := Update.LatestVersion;
-      Yay := Update.IsUpdateAvailable(Next, Notes);
+      Current := Update.CurrentVersion;
+      if not Update.IsUpdateAvailable(Latest, Notes) then begin
+        MessageBox(Npp.NppData.NppHandle,
+                   PChar(Format('Nothing to update!'#10#10'Your current version of this plugin, v%s, is the most recent one.',
+                                [Current])), PChar(Caption),
+                   MB_ICONINFORMATION);
+        Exit;
+      end;
+
+      if ID_YES = MessageBox(Npp.NppData.NppHandle,
+                             PChar(Format('Update available!'#10#10
+                                        + 'Your current version of this plugin, v%0:s, is out of date.'
+                                        + ' We recommend you update to version %1:s.'#10#10
+                                        + 'These are the changes since the current version:'#10#10
+                                        + '%2:s'#10#10
+                                        + 'Do you want to download and install %1:s?',
+                                          [Current, Latest, Notes])),
+                             PChar(Caption), MB_YESNO or MB_DEFBUTTON1 or MB_ICONQUESTION) then begin
+        ZipPath := Update.DownloadUpdate;
+        FUpdated := Update.ReplacePlugin(ZipPath);
+        if FUpdated then
+          MessageBox(Npp.NppData.NppHandle,
+                     'Update completed. Please restart Notepad++ to use the updated plugin.',
+                     PChar(Caption), MB_ICONINFORMATION);
+      end;
     finally
       Update.Free;
     end;
-    MessageBox(Npp.NppData.NppHandle,
-              PChar(Format('Current: "%s"; Latest: "%s"; Difference: %d',
-                          [Cur, Next, TPluginUpdate.CompareVersions(Cur, Next)])),
-              PChar(Caption), MB_ICONINFORMATION);
-    MessageBox(Npp.NppData.NppHandle,
-              PChar(Format('Is update available? %s! Latest version: "%s"'#10#10'%s',
-                          [BoolToStr(Yay, True), Next, Notes])),
-              PChar(Caption), MB_ICONINFORMATION);
   except
     ShowException(ExceptObject, ExceptAddr);
   end;
@@ -235,15 +249,6 @@ begin
     ShowException(ExceptObject, ExceptAddr);
   end;
 end {TNppPluginPreviewHTML.CommandOpenFilters};
-
-{ ------------------------------------------------------------------------------------------------ }
-procedure TNppPluginPreviewHTML.CommandReplaceHelloWorld;
-var
-  s: UTF8String;
-begin
-  s := 'Hello World';
-  SendMessage(self.NppData.ScintillaMainHandle, SCI_REPLACESEL, 0, LPARAM(PAnsiChar(s)));
-end {TNppPluginPreviewHTML.CommandReplaceHelloWorld};
 
 { ------------------------------------------------------------------------------------------------ }
 procedure TNppPluginPreviewHTML.CommandSetIEVersion(const BrowserEmulation: Integer);
