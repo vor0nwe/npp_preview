@@ -11,7 +11,6 @@ type
     FURL: string;
 //    FOnProgress: TProgressEvent; // TODO: see L_HttpClient
     FLatestVersion: string;
-    FChanges: string;
 
     function GetCurrentVersion: string;
     function GetLatestVersion: string;
@@ -69,6 +68,12 @@ end {TPluginUpdate.GetCurrentVersion};
 
 { ------------------------------------------------------------------------------------------------ }
 function TPluginUpdate.GetLatestVersion: string;
+begin
+  // TODO
+end {TPluginUpdate.GetLatestVersion};
+
+{ ------------------------------------------------------------------------------------------------ }
+function TPluginUpdate.IsUpdateAvailable(out NewVersion, Changes: string): Boolean;
 var
   Http: THttpClient;
   Notes: string;
@@ -77,54 +82,46 @@ var
   Match: TMatch;
   i: Integer;
 begin
-  if FLatestVersion = '' then begin
-    // Download the current release notes
-    ODS('Create HttpClient');
-    Http := THttpClient.Create('http://fossil.2of4.net/npp_preview/doc/publish/ReleaseNotes.txt');
-    try
-      ODS('Http.Get');
-      if Http.Get() = 200 then begin
-        ODS('%d %s', [Http.StatusCode, Http.StatusText]);
-        for i := 0 to Http.ResponseHeaders.Count - 1 do
-          ODS(Http.ResponseHeaders[i]);
-        Notes := Http.ResponseString;
-        ODS('Response: "%s"', [Copy(StringReplace(StringReplace(Notes, #10, '·', [rfReplaceAll]), #13, '·', [rfReplaceAll]), 1, 250)]);
-        // get the response stream, and look for the latest version in there
-        Matches := TRegEx.Matches(Notes, 'v[0-9]+(\.[0-9]+){3}');
-        ODS('Matches: %d', [Matches.Count]);
-        if Matches.Count > 0 then begin
-          Match := Matches.Item[0];
-          ODS('Match: Success=%s; Value="%s"; Index=%d', [BoolToStr(Match.Success, True), Match.Value, Match.Index]);
-          if Match.Success then begin
-            FLatestVersion := Match.Value;
-            {$MESSAGE WARN 'TODO: read all versions until we find the current one. Otherwise stop at </pre>.'}
-            if (Matches.Count > 1) and Matches[1].Success then begin
-              FChanges := Notes.Substring(Match.Index - 1, Matches[1].Index - Match.Index);
-            end else begin
-              i := Pos('</pre>', Notes);
-              FChanges := Notes.Substring(Match.Index - 1, i - Match.Index);
-            end;
+  Result := False;
+
+  // Download the current release notes
+  ODS('Create HttpClient');
+  Http := THttpClient.Create('http://fossil.2of4.net/npp_preview/doc/publish/ReleaseNotes.txt');
+  try
+    ODS('Http.Get');
+    if Http.Get() = 200 then begin
+      ODS('%d %s', [Http.StatusCode, Http.StatusText]);
+      for i := 0 to Http.ResponseHeaders.Count - 1 do
+        ODS(Http.ResponseHeaders[i]);
+      Notes := Http.ResponseString;
+      ODS('Response: "%s"', [Copy(StringReplace(StringReplace(Notes, #10, '·', [rfReplaceAll]), #13, '·', [rfReplaceAll]), 1, 250)]);
+      // get the response stream, and look for the latest version in there
+      Matches := TRegEx.Matches(Notes, 'v[0-9]+(\.[0-9]+){3}');
+      ODS('Matches: %d', [Matches.Count]);
+      if Matches.Count > 0 then begin
+        Match := Matches.Item[0];
+        ODS('Match: Success=%s; Value="%s"; Index=%d', [BoolToStr(Match.Success, True), Match.Value, Match.Index]);
+        if Match.Success then begin
+          NewVersion := Match.Value;
+          {$MESSAGE WARN 'TODO: read all versions until we find the current one. Otherwise stop at </pre>.'}
+          if (Matches.Count > 1) and Matches[1].Success then begin
+            Changes := Notes.Substring(Match.Index - 1, Matches[1].Index - Match.Index);
+          end else begin
+            i := Pos('</pre>', Notes);
+            Changes := Notes.Substring(Match.Index - 1, i - Match.Index);
           end;
         end;
-      end else begin
-        // TODO: show message, open project's main page?
-        raise EUpdateError.CreateFmt('%d %s', [Http.StatusCode, Http.StatusText]);
       end;
-    finally
-      Http.Free;
+    end else begin
+      // TODO: show message, open project's main page?
+      raise EUpdateError.CreateFmt('%d %s', [Http.StatusCode, Http.StatusText]);
     end;
+  finally
+    Http.Free;
   end;
-  Result := FLatestVersion;
-end {TPluginUpdate.GetLatestVersion};
 
-{ ------------------------------------------------------------------------------------------------ }
-function TPluginUpdate.IsUpdateAvailable(out NewVersion, Changes: string): Boolean;
-begin
-  NewVersion := LatestVersion;
   Result := CompareVersions(CurrentVersion, NewVersion) > 0;
   // TODO: Populate Changes from the text between the match of the first version number, and the next (or, if there is no next, the </pre> tag).
-//  if Result then
-    Changes := FChanges;
 end {TPluginUpdate.IsUpdateAvailable};
 
 { ------------------------------------------------------------------------------------------------ }

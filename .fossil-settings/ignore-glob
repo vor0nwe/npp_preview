@@ -1,0 +1,14 @@
+*/__history/*
+*/__recovery/*
+out/
+*.local
+*.identcache
+*.dsk
+*.stat
+*.tvsconfig
+~*.*
+*.~*
+*.bak
+*.rej
+*.org
+*.res

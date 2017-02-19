@@ -25,8 +25,8 @@ type
     procedure CommandReplaceHelloWorld;
 
     procedure DoNppnToolbarModification; override;
-    procedure DoNppnFileClosed(const BufferID: Cardinal); override;
-    procedure DoNppnBufferActivated(const BufferID: Cardinal); override;
+    procedure DoNppnFileClosed(const BufferID: THandle); override;
+    procedure DoNppnBufferActivated(const BufferID: THandle); override;
     procedure DoModified(const hwnd: HWND; const modificationType: Integer); override;
 
     function  GetSettings(const Name: string = 'Settings.ini'): TIniFile;
@@ -314,7 +314,7 @@ begin
 end {TNppPluginPreviewHTML.DoNppnToolbarModification};
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TNppPluginPreviewHTML.DoNppnBufferActivated(const BufferID: Cardinal);
+procedure TNppPluginPreviewHTML.DoNppnBufferActivated(const BufferID: THandle);
 begin
   inherited;
   if Assigned(frmHTMLPreview) and frmHTMLPreview.Visible then begin
@@ -323,7 +323,7 @@ begin
 end {TNppPluginPreviewHTML.DoNppnBufferActivated};
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TNppPluginPreviewHTML.DoNppnFileClosed(const BufferID: Cardinal);
+procedure TNppPluginPreviewHTML.DoNppnFileClosed(const BufferID: THandle);
 begin
   if Assigned(frmHTMLPreview) then begin
     frmHTMLPreview.ForgetBuffer(BufferID);

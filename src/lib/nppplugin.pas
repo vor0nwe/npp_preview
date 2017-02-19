@@ -429,7 +429,7 @@ type
   end;
 
   TCommunicationInfo = record
-    internalMsg: Cardinal;
+    internalMsg: NativeUInt;
     srcModuleName: nppPChar;
     info: Pointer;
   end;
@@ -473,7 +473,7 @@ type
   TNppPlugin = class(TObject)
   private
     FuncArray: array of _TFuncItem;
-    FClosingBufferID: Integer;
+    FClosingBufferID: THandle;
     FConfigDir: string;
   protected
     PluginName: nppString;
@@ -503,8 +503,8 @@ type
     // hooks
     procedure DoNppnToolbarModification; virtual;
     procedure DoNppnShutdown; virtual;
-    procedure DoNppnBufferActivated(const BufferID: Cardinal); virtual;
-    procedure DoNppnFileClosed(const BufferID: Cardinal); virtual;
+    procedure DoNppnBufferActivated(const BufferID: THandle); virtual;
+    procedure DoNppnFileClosed(const BufferID: THandle); virtual;
     procedure DoUpdateUI(const hwnd: HWND; const updated: Integer); virtual;
     procedure DoModified(const hwnd: HWND; const modificationType: Integer); virtual;
 
@@ -752,12 +752,12 @@ begin
   // override these
 end;
 
-procedure TNppPlugin.DoNppnBufferActivated(const BufferID: Cardinal);
+procedure TNppPlugin.DoNppnBufferActivated(const BufferID: THandle);
 begin
   // override these
 end;
 
-procedure TNppPlugin.DoNppnFileClosed(const BufferID: Cardinal);
+procedure TNppPlugin.DoNppnFileClosed(const BufferID: THandle);
 begin
   // override these
 end;

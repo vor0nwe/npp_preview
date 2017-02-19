@@ -4,12 +4,14 @@ unit F_PreviewHTML;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Variants, Graphics, Controls, Forms,
+  Windows, Messages, SysUtils, Classes, Variants, Graphics, Controls, Forms, Generics.Collections,
   Dialogs, StdCtrls, SHDocVw, OleCtrls, ComCtrls, ExtCtrls, IniFiles,
   NppPlugin, NppDockingForms,
   U_CustomFilter;
 
 type
+  TBufferID = NativeInt;
+
   TfrmHTMLPreview = class(TNppDockingForm)
     wbIE: TWebBrowser;
     pnlButtons: TPanel;
@@ -44,25 +46,25 @@ type
     procedure wbIEDocumentComplete(ASender: TObject; const pDisp: IDispatch; const URL: OleVariant);
   private
     { Private declarations }
-    FBufferID: NativeInt;
-    FScrollPositions: TStringList;
+    FBufferID: TBufferID;
+    FScrollPositions: TDictionary<TBufferID,TPoint>;
     FFilterThread: TCustomFilterThread;
     FScrollTop: Integer;
     FScrollLeft: Integer;
 
     procedure SaveScrollPos;
-    procedure RestoreScrollPos(const BufferID: NativeInt);
+    procedure RestoreScrollPos(const BufferID: TBufferID);
 
     function  DetermineCustomFilter: string;
-    function  ExecuteCustomFilter(const FilterName, HTML: string; const BufferID: NativeInt): Boolean;
+    function  ExecuteCustomFilter(const FilterName, HTML: string; const BufferID: TBufferID): Boolean;
     function  TransformXMLToHTML(const XML: WideString): string;
 
     procedure FilterThreadTerminate(Sender: TObject);
   public
     { Public declarations }
     procedure ResetTimer;
-    procedure ForgetBuffer(const BufferID: NativeInt);
-    procedure DisplayPreview(HTML: string; const BufferID: NativeInt);
+    procedure ForgetBuffer(const BufferID: TBufferID);
+    procedure DisplayPreview(HTML: string; const BufferID: TBufferID);
   end;
 
 var
@@ -75,15 +77,25 @@ procedure ODS(const DebugOutput: string; const Args: array of const); overload;
 implementation
 uses
   ShellAPI, ComObj, StrUtils, IOUtils, Masks, MSHTML,
-  RegExpr,
+  RegExpr, L_SpecialFolders,
   WebBrowser, SciSupport, U_Npp_PreviewHTML;
 
 {$R *.dfm}
+
+var
+  OutputLog: TStreamWriter;
 
 { ------------------------------------------------------------------------------------------------ }
 procedure ODS(const DebugOutput: string); overload;
 begin
   OutputDebugString(PChar('PreviewHTML['+IntToHex(GetCurrentThreadId, 4)+']: ' + DebugOutput));
+  if OutputLog = nil then begin
+    OutputLog := TStreamWriter.Create(TFileStream.Create(ChangeFileExt(TSpecialFolders.DLLFullName, '.log'), fmCreate or fmShareDenyWrite), TEncoding.UTF8);
+    OutputLog.OwnStream;
+    OutputLog.BaseStream.Seek(0, soFromEnd);
+  end;
+  OutputLog.Write(FormatDateTime('yyyy-MM-dd hh:nn:ss.zzz: ', Now));
+  OutputLog.WriteLine(DebugOutput);
 end {ODS};
 { ------------------------------------------------------------------------------------------------ }
 procedure ODS(const DebugOutput: string; const Args: array of const); overload;
@@ -97,7 +109,7 @@ end{ODS};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.FormCreate(Sender: TObject);
 begin
-  FScrollPositions := TStringList.Create;
+  FScrollPositions := TDictionary<TBufferID,TPoint>.Create;
   self.NppDefaultDockingMask := DWS_DF_FLOATING; // whats the default docking position
   //self.KeyPreview := true; // special hack for input forms
   self.OnFloat := self.FormFloat;
@@ -135,7 +147,7 @@ end {TfrmHTMLPreview.tmrAutorefreshTimer};
 procedure TfrmHTMLPreview.btnRefreshClick(Sender: TObject);
 var
   View: Integer;
-  BufferID: Integer;
+  BufferID: TBufferID;
   hScintilla: THandle;
   Lexer: NativeInt;
   IsHTML, IsXML, IsCustom: Boolean;
@@ -143,16 +155,15 @@ var
   Content: UTF8String;
   HTML: string;
   FilterName: string;
+  CodePage: NativeInt;
 begin
   if chkFreeze.Checked then
     Exit;
 
   try
     tmrAutorefresh.Enabled := False;
-    if Assigned(FFilterThread) then begin
 ODS('FreeAndNil(FFilterThread);');
-      FreeAndNil(FFilterThread);
-    end;
+    FreeAndNil(FFilterThread);
     SaveScrollPos;
 
     SendMessage(Self.Npp.NppData.NppHandle, NPPM_GETCURRENTSCINTILLA, 0, LPARAM(@View));
@@ -176,11 +187,20 @@ ODS('FreeAndNil(FFilterThread);');
       {$MESSAGE HINT 'TODO: Find a way to communicate why there is no preview, depending on the situation — MCO 22-01-2013'}
 
       if IsXML or IsHTML or IsCustom then begin
+        CodePage := SendMessage(hScintilla, SCI_GETCODEPAGE, 0, 0);
         Size := SendMessage(hScintilla, SCI_GETTEXT, 0, 0);
         SetLength(Content, Size);
         SendMessage(hScintilla, SCI_GETTEXT, Size, LPARAM(PAnsiChar(Content)));
-        Content := UTF8String(PAnsiChar(Content));
-        HTML := string(Content);
+        if CodePage = CP_ACP then begin
+          HTML := string(PAnsiChar(Content));
+        end else begin
+          SetLength(HTML, Size);
+          if Size > 0 then begin
+            SetLength(HTML, MultiByteToWideChar(CodePage, 0, PAnsiChar(Content), Size, PWideChar(HTML), Length(HTML)));
+            if Length(HTML) = 0 then
+              RaiseLastOSError;
+          end;
+        end;
       end;
 
       if IsCustom then begin
@@ -218,7 +238,7 @@ begin
 end {TfrmHTMLPreview.chkFreezeClick};
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TfrmHTMLPreview.DisplayPreview(HTML: string; const BufferID: NativeInt);
+procedure TfrmHTMLPreview.DisplayPreview(HTML: string; const BufferID: TBufferID);
 var
   IsHTML: Boolean;
   HeadStart: Integer;
@@ -285,8 +305,8 @@ end {TfrmHTMLPreview.DisplayPreview};
 { ------------------------------------------------------------------------------------------------ }
 procedure TfrmHTMLPreview.SaveScrollPos;
 var
-  Index, ScrollTop, ScrollLeft: Integer;
   docEl: IHTMLElement2;
+  P: TPoint;
 begin
   FScrollTop := -1;
   FScrollLeft := -1;
@@ -295,51 +315,47 @@ begin
 
   if Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
     docEl := (wbIE.Document as IHTMLDocument3).documentElement AS IHTMLElement2;
-    ScrollTop := docEl.scrollTop;
-    ScrollLeft := docEl.scrollLeft;
+    P.Y := docEl.scrollTop;
+    P.X := docEl.scrollLeft;
+    FScrollPositions.AddOrSetValue(FBufferID, P);
+    ODS('SaveScrollPos[%x]: %dx%d', [FBufferID, P.X, P.Y]);
   end else begin
-    ScrollTop := -1;
-    ScrollLeft := -1;
+    FScrollPositions.Remove(FBufferID);
+    ODS('SaveScrollPos[%x]: --', [FBufferID]);
   end;
-  Index := FScrollPositions.IndexOfObject(TObject(FBufferID));
-  if Index = -1 then
-    FScrollPositions.AddObject(IntToStr(ScrollTop) + '=' + IntToStr(ScrollLeft), TObject(FBufferID))
-  else
-    FScrollPositions[Index] := IntToStr(ScrollTop) + '=' + IntToStr(ScrollLeft);
 end {TfrmHTMLPreview.SaveScrollPos};
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TfrmHTMLPreview.RestoreScrollPos(const BufferID: NativeInt);
+procedure TfrmHTMLPreview.RestoreScrollPos(const BufferID: TBufferID);
 var
-  Index: Integer;
+  P: TPoint;
   docEl: IHTMLElement2;
 begin
   {--- MCO 22-01-2013: Look up this buffer's scroll position; if we know one, wait for the page
                           to finish loading, then restore the scroll position. ---}
-  Index := FScrollPositions.IndexOfObject(TObject(BufferID));
-  if Index > -1 then begin
-    FScrollTop := StrToInt(FScrollPositions.Names[Index]);
-    FScrollLeft := StrToInt(FScrollPositions.ValueFromIndex[Index]);
+  if FScrollPositions.TryGetValue(BufferID, P) then begin
+    FScrollTop := P.Y;
+    FScrollLeft := P.X;
+    ODS('RestoreScrollPos[%x]: %dx%d', [BufferID, P.X, P.Y]);
     if (FScrollTop <> -1) and Assigned(wbIE.Document) and Assigned((wbIE.Document as IHTMLDocument3).documentElement) then begin
       docEl := (wbIE.Document as IHTMLDocument3).documentElement as IHTMLElement2;
       docEl.scrollTop := FScrollTop;
       docEl.scrollLeft := FScrollLeft;
+      ODS('RestoreScrollPos: done!');
     end;
+  end else begin
+    ODS('RestoreScrollPos[%x]: --', [BufferID]);
   end;
   FBufferID := BufferID;
 end {TfrmHTMLPreview.RestoreScrollPos};
 
 { ------------------------------------------------------------------------------------------------ }
-procedure TfrmHTMLPreview.ForgetBuffer(const BufferID: NativeInt);
-var
-  Index: Integer;
+procedure TfrmHTMLPreview.ForgetBuffer(const BufferID: TBufferID);
 begin
   if FBufferID = BufferID then
     FBufferID := -1;
   if Assigned(FScrollPositions) then begin
-    Index := FScrollPositions.IndexOfObject(TObject(BufferID));
-    if Index > -1 then
-      FScrollPositions.Delete(Index);
+    FScrollPositions.Remove(BufferID);
   end;
 end {TfrmHTMLPreview.ForgetBuffer};
 
@@ -437,7 +453,7 @@ begin
 end {TfrmHTMLPreview.DetermineCustomFilter};
 
 { ------------------------------------------------------------------------------------------------ }
-function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string; const BufferID: NativeInt): Boolean;
+function TfrmHTMLPreview.ExecuteCustomFilter(const FilterName, HTML: string; const BufferID: TBufferID): Boolean;
 var
   FilterData: TFilterData;
   DocFile: TFileName;
@@ -677,7 +693,7 @@ begin
       Handle := Npp.NppData.NppHandle
     else
       Handle := 0;
-    ShellExecute(Handle, nil, PChar(bstrUrl), nil, nil, SW_SHOWDEFAULT)
+    ShellExecute(Handle, nil, PChar(bstrUrl), nil, nil, SW_SHOWDEFAULT);
   end;
   Cancel := True;
 end;
@@ -694,7 +710,7 @@ begin
   sbrIE.SimpleText := Text;
 //  sbrIE.Visible := Length(Text) > 0;
 //  if sbrIE.Visible then
-  sbrIE.Refresh;
+  sbrIE.Invalidate;
 end;
 
 { ------------------------------------------------------------------------------------------------ }
@@ -703,5 +719,11 @@ begin
   inherited;
   self.UpdateDisplayInfo(StringReplace(Text, 'about:blank', '', [rfReplaceAll]));
 end;
+
+
+initialization
+
+finalization
+  OutputLog.Free;
 
 end.
