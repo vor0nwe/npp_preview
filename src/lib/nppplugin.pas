@@ -399,7 +399,7 @@ const
 
 type
 {$IFDEF NPPUNICODE}
-  nppString = WideString;
+  nppString = UnicodeString;
   nppChar = WChar;
   nppPChar = PWChar;
 {$ELSE}

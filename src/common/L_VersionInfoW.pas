@@ -9,49 +9,60 @@ type
   TFileVersionInfo = class
   private
     { Private declarations }
-    FFilename         : WideString;
+    FFilename         : string;
     FHasVersionInfo   : boolean;
 
-    FCompanyName      : WideString;
-    FFileDescription  : WideString;
-    FFileVersion      : WideString;
-    FInternalname     : WideString;
-    FLegalCopyright   : WideString;
-    FLegalTradeMarks  : WideString;
-    FOriginalFilename : WideString;
-    FProductName      : WideString;
-    FProductVersion   : WideString;
-    FComments         : WideString;
+    FCompanyName      : string;
+    FFileDescription  : string;
+    FFileVersion      : string;
+    FInternalname     : string;
+    FLegalCopyright   : string;
+    FLegalTradeMarks  : string;
+    FOriginalFilename : string;
+    FProductName      : string;
+    FProductVersion   : string;
+    FComments         : string;
     FMajorVersion     : Word;
     FMinorVersion     : Word;
-    FRevision          : Word;
+    FRevision         : Word;
     FBuild            : Word;
+    FFlags            : Word;
+    FFileDateTime     : TDateTime;
 
-    procedure SetFileName(AFileName: WideString);
+    procedure SetFileName(const AFileName: string);
+    function  HasFlag(const Index: integer): boolean;
   protected
     { Protected declarations }
   public
     { Public declarations }
-    constructor Create(AFileName: WideString);
+    constructor Create(const AFileName: string);
     destructor  Destroy; override;
 
-    property FileName         : WideString read FFileName           write SetFileName;
+    property FileName         : string    read FFileName           write SetFileName;
   public
     { Published declarations }
-    property CompanyName      : WideString  read FCompanyName;
-    property FileDescription  : WideString  read FFileDescription;
-    property FileVersion      : WideString  read FFileVersion;
-    property Internalname     : WideString  read FInternalname;
-    property LegalCopyright   : WideString  read FLegalCopyright;
-    property LegalTradeMarks  : WideString  read FLegalTradeMarks;
-    property OriginalFilename : WideString  read FOriginalFilename;
-    property ProductName      : WideString  read FProductName;
-    property ProductVersion   : WideString  read FProductVersion;
-    property Comments         : WideString  read FComments;
-    property MajorVersion     : Word        read FMajorVersion;
-    property MinorVersion     : Word        read FMinorVersion;
-    property Revision         : Word        read FRevision;
-    property Build            : Word        read FBuild;
+    property CompanyName      : string    read FCompanyName;
+    property FileDescription  : string    read FFileDescription;
+    property FileVersion      : string    read FFileVersion;
+    property Internalname     : string    read FInternalname;
+    property LegalCopyright   : string    read FLegalCopyright;
+    property LegalTradeMarks  : string    read FLegalTradeMarks;
+    property OriginalFilename : string    read FOriginalFilename;
+    property ProductName      : string    read FProductName;
+    property ProductVersion   : string    read FProductVersion;
+    property Comments         : string    read FComments;
+    property MajorVersion     : Word      read FMajorVersion;
+    property MinorVersion     : Word      read FMinorVersion;
+    property Revision         : Word      read FRevision;
+    property Build            : Word      read FBuild;
+    property Flags            : Word      read FFlags;
+    property IsDebug          : boolean   index VS_FF_DEBUG         read HasFlag;
+    property IsPreRelease     : boolean   index VS_FF_PRERELEASE    read HasFlag;
+    property IsPatched        : boolean   index VS_FF_PATCHED       read HasFlag;
+    property IsPrivateBuild   : boolean   index VS_FF_PRIVATEBUILD  read HasFlag;
+    property IsInfoInferred   : boolean   index VS_FF_INFOINFERRED  read HasFlag;
+    property IsSpecialBuild   : boolean   index VS_FF_SPECIALBUILD  read HasFlag;
+    property FileDateTime     : TDateTime read FFileDateTime;
   end;
 
 implementation
@@ -63,7 +74,7 @@ type
   end;
   PLangAndCP = ^TLangAndCP;
 
-constructor TFileVersionInfo.Create(AFileName: WideString);
+constructor TFileVersionInfo.Create(const AFileName: string);
 begin
   inherited Create;
   SetFileName(AFileName);
@@ -74,35 +85,41 @@ begin
   inherited Destroy;
 end;
 
-procedure TFileVersionInfo.SetFileName(AFileName: WideString);
+procedure TFileVersionInfo.SetFileName(const AFileName: string);
 var
-  Dummy     : cardinal;
-  BufferSize: integer;
+  Dummy     : UINT;
+  BufferSize: DWORD;
   Buffer    : Pointer;
-  Lang      : PLangAndCP;
-  SubBlock  : WideString;
-  InfoBlock : VS_FIXEDFILEINFO;
-  InfoPtr   : Pointer;
-  function QueryValue(AName: WideString): WideString;
+  PLang     : PLangAndCP;
+  SubBlock  : string;
+  SysTime: TSystemTime;
+  { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
+  function QueryValue(const AName: string): string;
   var
-    Value   : PWChar;
+    Value   : PChar;
   begin
-    SubBlock := WideFormat('\\StringFileInfo\\%.4x%.4x\\%s', [Lang.wLanguage, Lang.wCodePage, AName]);
-    VerQueryValueW(Buffer, PWChar(SubBlock), Pointer(Value), Dummy);
-    Result := WideString(Value);
+    SubBlock := WideFormat('\\StringFileInfo\\%.4x%.4x\\%s', [PLang.wLanguage, PLang.wCodePage, AName]);
+    if VerQueryValue(Buffer, PChar(SubBlock), Pointer(Value), Dummy) then
+      Result := string(Value)
+    else
+      Result := '';
   end;
+  { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
+var
+  PInfoBlock : PVSFixedFileInfo;
+  FileTime   : TFileTime;
 begin
   FFilename := AFileName;
 
-  BufferSize := GetFileVersionInfoSizeW(PWChar(AFileName), Dummy);
+  BufferSize := GetFileVersionInfoSize(PChar(AFileName), Dummy);
   FHasVersionInfo := (Buffersize > 0);
-  if BufferSize > 0 then begin
+  if FHasVersionInfo then begin
     Buffer := AllocMem(BufferSize);
     try
-      GetFileVersionInfoW(PWChar(AFileName),0,BufferSize,Buffer);
+      GetFileVersionInfo(PChar(AFileName), Dummy, BufferSize, Buffer);
 
       SubBlock := '\\VarFileInfo\\Translation';
-      VerQueryValueW(Buffer, PWChar(SubBlock), Pointer(Lang), Dummy);
+      VerQueryValue(Buffer, PChar(SubBlock), Pointer(PLang), Dummy);
 
       FCompanyName      := QueryValue('CompanyName');
       FFileDescription  := QueryValue('FileDescription');
@@ -115,17 +132,21 @@ begin
       FProductVersion   := QueryValue('ProductVersion');
       FComments         := QueryValue('Comments');
 
-      VerQueryValue(Buffer, '\', InfoPtr, Dummy);
-      Move(InfoPtr^, InfoBlock, SizeOf(VS_FIXEDFILEINFO));
-      FMajorVersion := InfoBlock.dwFileVersionMS shr 16;
-      FMinorVersion := InfoBlock.dwFileVersionMS and 65535;
-      FRevision     := InfoBlock.dwFileVersionLS shr 16;
-      FBuild        := InfoBlock.dwFileVersionLS and 65535;
+      VerQueryValue(Buffer, '\', Pointer(PInfoBlock), Dummy);
+      FMajorVersion := PInfoBlock.dwFileVersionMS shr 16;
+      FMinorVersion := PInfoBlock.dwFileVersionMS and 65535;
+      FRevision     := PInfoBlock.dwFileVersionLS shr 16;
+      FBuild        := PInfoBlock.dwFileVersionLS and 65535;
+      FFlags        := PInfoBlock.dwFileFlags and PInfoBlock.dwFileFlagsMask;
+
+      FileTime.dwLowDateTime  := PInfoBlock.dwFileDateLS;
+      FileTime.dwHighDateTime := PInfoBlock.dwFileDateMS;
+      if FileTimeToLocalFileTime(FileTime, FileTime) and FileTimeToSystemTime(FileTime, SysTime) and (SysTime.wYear > 1601) then
+        FFileDateTime := SystemTimeToDateTime(SysTime);
     finally
-      FreeMem(Buffer,BufferSize);
+      FreeMem(Buffer, BufferSize);
     end;
-  end
-  else begin
+  end else begin
     FCompanyname      := '';
     FFileDescription  := '';
     FFileVersion      := '';
@@ -141,6 +162,11 @@ begin
     FRevision         := 0;
     FBuild            := 0;
   end;
+end;
+
+function TFileVersionInfo.HasFlag(const Index: integer): boolean;
+begin
+  Result := (FFlags and Index) <> 0;
 end;
 
 
