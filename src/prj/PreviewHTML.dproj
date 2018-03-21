@@ -7,7 +7,7 @@
         <TargetedPlatforms>1</TargetedPlatforms>
         <AppType>Library</AppType>
         <FrameworkType>VCL</FrameworkType>
-        <ProjectVersion>18.2</ProjectVersion>
+        <ProjectVersion>18.3</ProjectVersion>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
@@ -38,10 +38,8 @@
         <SanitizedProjectName>PreviewHTML</SanitizedProjectName>
         <VerInfo_MinorVer>4</VerInfo_MinorVer>
         <PostBuildEventCancelOnError>false</PostBuildEventCancelOnError>
-        <PostBuildEvent>
-            <![CDATA["C:\MC\Run\Util\Compression\UPX\upx.exe" --best -q "$(OUTPUTPATH)"
-$(PostBuildEvent)]]>
-        </PostBuildEvent>
+        <PostBuildEvent><![CDATA["C:\MC\Run\Util\Compression\UPX\upx.exe" --best -q "$(OUTPUTPATH)"
+$(PostBuildEvent)]]></PostBuildEvent>
         <VerInfo_DLL>true</VerInfo_DLL>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <VerInfo_Keys>CompanyName=Voronwë;FileDescription=HTML Preview plugin for Notepad++;FileVersion=1.4.0.0;InternalName=PreviewHTML;LegalCopyright=© Martijn Coppoolse;LegalTrademarks=;OriginalFilename=PreviewHTML.dll;ProductName=Notepad++;ProductVersion=6.0.0.0;Comments=http://martijn.coppoolse.com/software</VerInfo_Keys>
@@ -75,9 +73,7 @@ $(PostBuildEvent)]]>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <VerInfo_Debug>true</VerInfo_Debug>
         <VerInfo_PreRelease>true</VerInfo_PreRelease>
-        <PostBuildEvent>
-            <![CDATA[]]>
-        </PostBuildEvent>
+        <PostBuildEvent><![CDATA[]]></PostBuildEvent>
         <DCC_SymbolReferenceInfo>2</DCC_SymbolReferenceInfo>
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
         <DCC_Optimize>false</DCC_Optimize>
@@ -167,7 +163,6 @@ $(PostBuildEvent)]]>
                 </VersionInfoKeys>
             </Delphi.Personality>
             <Platforms>
-                <Platform value="OSX32">False</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">False</Platform>
             </Platforms>
@@ -176,14 +171,6 @@ $(PostBuildEvent)]]>
     </ProjectExtensions>
     <Import Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
     <Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
-    <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='OSX32'">
-        <PreBuildEvent/>
-        <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
-        <PreLinkEvent/>
-        <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
-        <PostBuildEvent>&quot;C:\MC\Run\Util\Compression\UPX\upx.exe&quot; --best -q &quot;$(OUTPUTPATH)&quot;</PostBuildEvent>
-        <PostBuildEventIgnoreExitCode>True</PostBuildEventIgnoreExitCode>
-    </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
         <PreBuildEvent/>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
