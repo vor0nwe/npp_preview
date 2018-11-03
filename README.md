@@ -3,7 +3,7 @@
 
 It is written in [Delphi].
 
-Issues can be reported on the [Fossil] repository at [https://fossil.2of4.net/npp_preview]().
+Issues can be reported on the [Fossil] repository at https://fossil.2of4.net/npp_preview.
 
 [Delphi]: https://www.embarcadero.com/products/delphi/starter
 [Fossil]: https://fossil-scm.org/
